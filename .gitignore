@@ -23,3 +23,5 @@ yarn-error.log*
 *.mp4
 *.webm
 /recordings/
+# MediaPipe WASM (npm install 때 node_modules에서 자동 복사)
+/public/mediapipe/
