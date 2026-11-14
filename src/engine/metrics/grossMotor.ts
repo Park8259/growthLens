@@ -7,13 +7,14 @@
 
 import type { AnalysisResult } from "../../types/analysis";
 import { extractPoseLandmarks, LM, type PoseFrame } from "../pose";
-import { angleAt, dist, mid, tiltFromUp, toPx } from "../geometry";
+import { angleAt, dist, mid, tiltFromUp, toPx, type Pt } from "../geometry";
 
 /** 판정 기준값. 길이 기준은 모두 '몸통 길이(어깨 중점~골반 중점)' 대비 비율 */
 export const STANDING_THRESHOLDS = {
   minVisibility: 0.5, // 이보다 낮은 관절은 계산에서 제외
   standMaxTilt: 35, // 상체 기울기(°) 한계
   standAnkleBelowHip: 0.7, // 발목이 골반보다 몸통 길이의 70% 이상 아래
+  standAnkleBelowHipNoKnee: 1.0, // 무릎이 안 보일 때는 더 엄격하게 (서기 ≈ 1.4, 의자에 앉기 < 1.0)
   standKneeAngle: 140, // 무릎이 거의 펴짐(°)
   smoothWindowSec: 0.6, // 이 시간 안에서 가장 많이 나온 상태로 다듬기 (깜빡임 제거)
   bridgeGapSec: 0.5, // 서기 구간 사이에 이보다 짧게 끊기면 하나로 이어 봄
@@ -42,8 +43,21 @@ export function classifyFrame(
   if (!lm) return "unknown";
   const P = (i: number) => toPx(lm, i, width, height, th.minVisibility);
 
-  const shoulder = mid(P(LM.L_SHOULDER), P(LM.R_SHOULDER));
-  const hip = mid(P(LM.L_HIP), P(LM.R_HIP));
+  // 몸통 = 어깨~골반. 골반이 양쪽 다 보이면 양쪽 중점끼리,
+  // 한쪽만 보이면(옆 촬영) 같은 쪽 어깨와 짝지어 재야 길이가 왜곡되지 않음
+  const lHip = P(LM.L_HIP);
+  const rHip = P(LM.R_HIP);
+  const lSh = P(LM.L_SHOULDER);
+  const rSh = P(LM.R_SHOULDER);
+  let hip: Pt | null = null;
+  let shoulder: Pt | null = null;
+  if (lHip && rHip) {
+    hip = mid(lHip, rHip);
+    shoulder = mid(lSh, rSh);
+  } else if (lHip || rHip) {
+    hip = lHip ?? rHip;
+    shoulder = lHip ? lSh : rSh;
+  }
   if (!shoulder || !hip) return "unknown";
   const torso = dist(shoulder, hip);
   if (torso < 1) return "unknown";
@@ -63,16 +77,16 @@ export function classifyFrame(
   const kneeAngle =
     best.hip && best.knee && best.ankle ? angleAt(best.hip, best.knee, best.ankle) : null;
 
-  const standing =
-    tilt <= th.standMaxTilt &&
-    ankleBelowHip !== null &&
-    ankleBelowHip >= th.standAnkleBelowHip &&
-    (kneeAngle === null || kneeAngle >= th.standKneeAngle);
-  return standing ? "standing" : "not_standing";
+  // 무릎이 보이면 무릎이 펴졌는지 확인, 안 보이면(옆 촬영으로 가려짐) 발목 높이를 더 엄격하게 봄
+  const legStraight =
+    kneeAngle !== null
+      ? kneeAngle >= th.standKneeAngle && ankleBelowHip !== null && ankleBelowHip >= th.standAnkleBelowHip
+      : ankleBelowHip !== null && ankleBelowHip >= th.standAnkleBelowHipNoKnee;
+  return tilt <= th.standMaxTilt && legStraight ? "standing" : "not_standing";
 }
 
 /** 각 프레임을 앞뒤 windowSec 안에서 가장 많이 나온 상태로 바꿈 */
-function smooth(times: number[], states: FrameState[], windowSec: number): FrameState[] {
+export function smooth(times: number[], states: FrameState[], windowSec: number): FrameState[] {
   const half = windowSec / 2;
   let lo = 0;
   let hi = 0;
@@ -107,7 +121,11 @@ export function measureStanding(
   let unknownSec = 0;
   for (let i = 0; i < frames.length - 1; i++) {
     const dt = times[i + 1] - times[i];
-    if (dt <= 0 || dt > th.maxFrameGapSec) continue;
+    if (dt <= 0) continue;
+    if (dt > th.maxFrameGapSec) {
+      unknownSec += dt; // 프레임이 끊긴 구간은 판정 불가로 셈 (품질 비율에 반영)
+      continue;
+    }
     if (states[i] === "unknown") {
       unknownSec += dt;
       continue;
@@ -157,6 +175,11 @@ export function toGrossMotorResult(summary: StandingSummary): AnalysisResult {
 }
 
 export async function analyzeGrossMotor(videoBlob: Blob): Promise<AnalysisResult> {
-  const track = await extractPoseLandmarks(videoBlob);
-  return toGrossMotorResult(measureStanding(track));
+  try {
+    const track = await extractPoseLandmarks(videoBlob);
+    return toGrossMotorResult(measureStanding(track));
+  } catch {
+    // 영상을 읽지 못했거나 모델 로드에 실패한 경우 — 화면이 멈추지 않게 재촬영 안내로 돌려줌
+    return { status: "retry_needed", retryReason: "영상을 분석하지 못했어요. 다시 촬영해 주세요." };
+  }
 }
