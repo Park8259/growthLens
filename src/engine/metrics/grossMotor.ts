@@ -14,7 +14,8 @@ export const STANDING_THRESHOLDS = {
   minVisibility: 0.5, // 이보다 낮은 관절은 계산에서 제외
   standMaxTilt: 35, // 상체 기울기(°) 한계
   standAnkleBelowHip: 0.7, // 발목이 골반보다 몸통 길이의 70% 이상 아래
-  standAnkleBelowHipNoKnee: 1.0, // 무릎이 안 보일 때는 더 엄격하게 (서기 ≈ 1.4, 의자에 앉기 < 1.0)
+  standAnkleBelowHipNoKnee: 1.0, // 무릎이 안 보일 때는 더 엄격하게. 서기 ≈ 1.4(프로토타입 실측),
+  //   1.0은 앉은 자세를 거르기 위한 추정값 — 실제 영상으로 확인 필요
   standKneeAngle: 140, // 무릎이 거의 펴짐(°)
   smoothWindowSec: 0.6, // 이 시간 안에서 가장 많이 나온 상태로 다듬기 (깜빡임 제거)
   bridgeGapSec: 0.5, // 서기 구간 사이에 이보다 짧게 끊기면 하나로 이어 봄
@@ -44,7 +45,8 @@ export function classifyFrame(
   const P = (i: number) => toPx(lm, i, width, height, th.minVisibility);
 
   // 몸통 = 어깨~골반. 골반이 양쪽 다 보이면 양쪽 중점끼리,
-  // 한쪽만 보이면(옆 촬영) 같은 쪽 어깨와 짝지어 재야 길이가 왜곡되지 않음
+  // 한쪽만 보이면(옆 촬영) 같은 쪽 어깨와 짝지어 재야 길이가 왜곡되지 않음.
+  // 같은 쪽 어깨가 가려졌으면(팔 등) 보이는 어깨로 대신함 — 판정 불가로 버리지 않기 위해
   const lHip = P(LM.L_HIP);
   const rHip = P(LM.R_HIP);
   const lSh = P(LM.L_SHOULDER);
@@ -56,7 +58,7 @@ export function classifyFrame(
     shoulder = mid(lSh, rSh);
   } else if (lHip || rHip) {
     hip = lHip ?? rHip;
-    shoulder = lHip ? lSh : rSh;
+    shoulder = (lHip ? lSh : rSh) ?? mid(lSh, rSh);
   }
   if (!shoulder || !hip) return "unknown";
   const torso = dist(shoulder, hip);
@@ -74,8 +76,10 @@ export function classifyFrame(
 
   const tilt = tiltFromUp(hip, shoulder);
   const ankleBelowHip = best.ankle ? (best.ankle.y - hip.y) / torso : null;
-  const kneeAngle =
-    best.hip && best.knee && best.ankle ? angleAt(best.hip, best.knee, best.ankle) : null;
+  // 무릎 각도는 같은 쪽 골반으로 재고, 그쪽 골반이 가려졌으면 몸통 계산에 쓴 골반으로 대신함
+  // (무릎·발목이 보이는데 골반 하나 때문에 각도를 못 재는 경우 방지)
+  const legHip = best.hip ?? hip;
+  const kneeAngle = best.knee && best.ankle ? angleAt(legHip, best.knee, best.ankle) : null;
 
   // 무릎이 보이면 무릎이 펴졌는지 확인, 안 보이면(옆 촬영으로 가려짐) 발목 높이를 더 엄격하게 봄
   const legStraight =
@@ -178,8 +182,10 @@ export async function analyzeGrossMotor(videoBlob: Blob): Promise<AnalysisResult
   try {
     const track = await extractPoseLandmarks(videoBlob);
     return toGrossMotorResult(measureStanding(track));
-  } catch {
-    // 영상을 읽지 못했거나 모델 로드에 실패한 경우 — 화면이 멈추지 않게 재촬영 안내로 돌려줌
-    return { status: "retry_needed", retryReason: "영상을 분석하지 못했어요. 다시 촬영해 주세요." };
+  } catch (e) {
+    // 영상을 읽지 못했거나 모델 로드에 실패한 경우 — 화면이 멈추지 않게 안내로 돌려줌
+    // 보호자 잘못이 아닐 수 있어 '다시 촬영'이 아니라 '다시 시도'로 안내. 원인은 개발 모드에서만 남김
+    if (import.meta.env.DEV) console.error("[grossMotor] 분석 실패", e);
+    return { status: "retry_needed", retryReason: "분석 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요." };
   }
 }
