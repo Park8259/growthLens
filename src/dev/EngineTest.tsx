@@ -37,7 +37,7 @@ export default function EngineTest() {
     URL.revokeObjectURL(a.href);
   }
 
-  const detected = track ? track.frames.filter((f) => f.lm).length : 0;
+  const detected = track ? track.frames.filter((f) => f.poses.length > 0).length : 0;
 
   return (
     <main style={{ fontFamily: "sans-serif", maxWidth: 640, margin: "40px auto", padding: "0 16px" }}>

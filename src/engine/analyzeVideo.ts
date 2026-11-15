@@ -1,20 +1,21 @@
 import type { AnalysisInput, AnalysisResult } from "../types/analysis";
-import { analyzeGrossMotor } from "./metrics/grossMotor";
-import { analyzeFineMotor } from "./metrics/fineMotor";
-import { analyzeSocial } from "./metrics/social";
+import { analyzeNameResponse } from "./metrics/nameResponse";
+import { analyzeImitation } from "./metrics/imitation";
+import { analyzeBallPlay } from "./metrics/ballPlay";
 
-export async function analyzeVideo(
-  input: AnalysisInput
-): Promise<AnalysisResult> {
+export async function analyzeVideo(input: AnalysisInput): Promise<AnalysisResult> {
   switch (input.taskType) {
-    case "gross_motor":
-      return analyzeGrossMotor(input.videoBlob);
-    case "fine_motor":
-      return analyzeFineMotor(input.videoBlob);
-    case "social":
+    case "name_response":
       if (input.stimulusTimestamp === undefined) {
-        throw new Error("stimulusTimestamp is required for social task");
+        throw new Error("stimulusTimestamp is required for name_response task");
       }
-      return analyzeSocial(input.videoBlob, input.stimulusTimestamp);
+      return analyzeNameResponse(input.videoBlob, input.stimulusTimestamp);
+    case "imitation":
+      if (input.stimulusTimestamp === undefined) {
+        throw new Error("stimulusTimestamp is required for imitation task");
+      }
+      return analyzeImitation(input.videoBlob, input.stimulusTimestamp);
+    case "ball_play":
+      return analyzeBallPlay(input.videoBlob);
   }
 }

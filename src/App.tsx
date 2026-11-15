@@ -12,6 +12,7 @@ import DoctorPatientsScreen from "./screens/doctor/patients";
 import PatientDetailScreen from "./screens/doctor/patientDetail";
 import DoctorInviteScreen from "./screens/doctor/invite";
 import DoctorAppointmentsScreen from "./screens/doctor/appointments";
+import ReplayScreen from "./screens/replay";
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/timeline"            element={<TimelineScreen />} />
         <Route path="/charts"              element={<ChartsScreen />} />
         <Route path="/clinic-summary"      element={<ClinicSummaryScreen />} />
+        <Route path="/replay/:sessionId"   element={<ReplayScreen />} />
 
         {/* 의사 앱 */}
         <Route path="/doctor/patients"       element={<DoctorPatientsScreen />} />
