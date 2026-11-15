@@ -3,6 +3,19 @@ import NavBar from "../../components/NavBar";
 import { useRecordsStore } from "../../store/records";
 import type { TaskType, AnalysisResult } from "../../types/analysis";
 
+function AmbientItem({ label, value, total, unit, note }: {
+  label: string; value: number; total: number; unit: string; note?: string;
+}) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  return (
+    <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+      <p className="text-xs text-gray-400 mb-0.5">{label}{note && <span className="ml-1 text-gray-300">({note})</span>}</p>
+      <p className="text-sm font-semibold text-gray-900 tabular-nums">{value.toFixed(1)}{unit}</p>
+      <p className="text-xs text-gray-400">{pct}%</p>
+    </div>
+  );
+}
+
 const TASK_LABEL: Record<TaskType, string> = {
   name_response: "호명반응",
   imitation: "동작 모방",
@@ -91,6 +104,17 @@ export default function ResultScreen() {
           <p className="text-xs text-gray-400 text-center">
             참고: 일반 발달 아동 평균 3.62초 (전근아·김휘영, 2025, 18~48개월)
           </p>
+        )}
+
+        {result.ambient && (
+          <div className="border border-gray-100 rounded-2xl p-4 space-y-3">
+            <p className="text-xs font-medium text-gray-400">이번 영상 공통 지표</p>
+            <div className="grid grid-cols-2 gap-3">
+              <AmbientItem label="보호자 지향" value={result.ambient.caregiverOrientSec} total={result.ambient.bothInFrameSec} unit="초" />
+              <AmbientItem label="활동량" value={result.ambient.activitySec} total={result.ambient.bothInFrameSec} unit="초" />
+              <AmbientItem label="신체 접촉" value={result.ambient.contactSec} total={result.ambient.bothInFrameSec} unit="초" note="참고값" />
+            </div>
+          </div>
         )}
       </div>
 
