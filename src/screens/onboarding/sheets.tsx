@@ -43,11 +43,7 @@ export function GenderSheet({
             onClick={() => setDraft(g)}
             className="flex-1 h-[149px] gap-1"
           >
-            <img
-              src={g === "male" ? "/images/icon-baby-boy.png" : "/images/icon-baby-girl.png"}
-              alt=""
-              className="h-[64px] w-auto object-contain"
-            />
+            <BabyIcon gender={g} />
             <span className="text-[17px] font-bold">{g === "male" ? "남아" : "여아"}</span>
           </OptionCard>
         ))}
@@ -56,6 +52,23 @@ export function GenderSheet({
         <SheetDone disabled={!draft} onClick={() => draft && onSelect(draft)} />
       </div>
     </BottomSheet>
+  );
+}
+
+/**
+ * 아기 얼굴 아이콘. PNG를 마스크로 쓰고 글자 색(currentColor)으로 칠해서,
+ * 카드를 선택하면 글씨와 함께 하늘색으로 바뀌어요.
+ */
+function BabyIcon({ gender }: { gender: "male" | "female" }) {
+  const src = gender === "male" ? "/images/icon-baby-boy.png" : "/images/icon-baby-girl.png";
+  const size = gender === "male" ? { width: 64, height: 64 } : { width: 91, height: 68 };
+  const mask = `url(${src}) center / contain no-repeat`;
+  return (
+    <span
+      aria-hidden
+      className="block bg-current transition-colors"
+      style={{ ...size, WebkitMask: mask, mask }}
+    />
   );
 }
 
