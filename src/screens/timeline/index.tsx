@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useRecordsStore } from "../../store/records";
+import { useNotesStore } from "../../store/notes";
 import BottomNav from "../../components/BottomNav";
 import NavBar from "../../components/NavBar";
 import type { TaskType } from "../../types/analysis";
@@ -30,6 +31,9 @@ const NAV_ITEMS = [
 export default function TimelineScreen() {
   const navigate = useNavigate();
   const records = useRecordsStore((s) => s.records);
+  const sharedNotes = useNotesStore((s) =>
+    s.notes.filter((n) => n.isShared).sort((a, b) => b.date.localeCompare(a.date))
+  );
 
   const sorted = [...records].sort((a, b) => b.recordedAt - a.recordedAt);
 
@@ -44,6 +48,21 @@ export default function TimelineScreen() {
       <NavBar title="기록" back={false} />
 
       <div className="flex-1 overflow-y-auto px-5 py-4">
+        {/* 선생님 피드백 — isShared 메모만 표시 */}
+        {sharedNotes.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-medium text-gray-400 mb-2">선생님 피드백</p>
+            <div className="space-y-2">
+              {sharedNotes.map((note) => (
+                <div key={note.id} className="bg-blue-50 rounded-2xl px-4 py-3">
+                  <p className="text-xs text-blue-400 mb-1">{note.date.replace(/-/g, ".")} · 담당 선생님</p>
+                  <p className="text-sm text-gray-800 leading-relaxed">{note.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {sorted.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <p className="text-gray-400 text-sm">아직 기록이 없어요</p>

@@ -281,6 +281,7 @@ function MemoTab({ patientId, patientName }: { patientId: string; patientName: s
   const notes    = useNotesStore((s) => s.notes.filter((n) => n.patientId === patientId));
   const addNote  = useNotesStore((s) => s.addNote);
   const deleteNote = useNotesStore((s) => s.deleteNote);
+  const toggleShare = useNotesStore((s) => s.toggleShare);
 
   const [isAdding, setIsAdding] = useState(false);
   const [newDate, setNewDate] = useState(new Date().toISOString().split("T")[0]);
@@ -290,7 +291,7 @@ function MemoTab({ patientId, patientName }: { patientId: string; patientName: s
 
   function handleSave() {
     if (!newText.trim()) return;
-    addNote({ patientId, date: newDate, text: newText.trim() });
+    addNote({ patientId, date: newDate, text: newText.trim(), isShared: false });
     setNewText("");
     setNewDate(new Date().toISOString().split("T")[0]);
     setIsAdding(false);
@@ -353,17 +354,36 @@ function MemoTab({ patientId, patientName }: { patientId: string; patientName: s
         <p className="text-sm text-gray-400 text-center py-10">아직 메모가 없어요</p>
       ) : (
         sorted.map((note) => (
-          <div key={note.id} className="border border-gray-100 rounded-2xl p-4">
+          <div key={note.id} className={`rounded-2xl p-4 border ${note.isShared ? "border-blue-100 bg-blue-50/40" : "border-gray-100"}`}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-gray-400">{fmtDate(note.date)}</span>
-              <button
-                onClick={() => deleteNote(note.id)}
-                className="text-gray-300 hover:text-gray-500 transition-colors"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                  <path d="M4 4l8 8M12 4l-8 8" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleShare(note.id)}
+                  className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                    note.isShared
+                      ? "border-blue-300 text-blue-600 bg-blue-50"
+                      : "border-gray-200 text-gray-400"
+                  }`}
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                    <circle cx="8" cy="2" r="1.2" />
+                    <circle cx="2" cy="5" r="1.2" />
+                    <circle cx="8" cy="8" r="1.2" />
+                    <line x1="3.1" y1="4.4" x2="6.9" y2="2.6" />
+                    <line x1="3.1" y1="5.6" x2="6.9" y2="7.4" />
+                  </svg>
+                  {note.isShared ? "부모 공개" : "비공개"}
+                </button>
+                <button
+                  onClick={() => deleteNote(note.id)}
+                  className="text-gray-300 hover:text-gray-500 transition-colors"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M4 4l8 8M12 4l-8 8" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <p className="text-sm text-gray-700 leading-relaxed">{note.text}</p>
           </div>
