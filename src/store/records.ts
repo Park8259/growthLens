@@ -49,7 +49,7 @@ function makeSeed(): SessionRecord[] {
 export const useRecordsStore = create<RecordsState>()(
   persist(
     (set) => ({
-      records: [],
+      records: makeSeed(), // 초기값이 seed — localStorage에 데이터 있으면 persist가 덮어씀
       addRecord: (r) =>
         set((s) => ({
           records: [...s.records, { ...r, id: crypto.randomUUID() }],
@@ -59,6 +59,14 @@ export const useRecordsStore = create<RecordsState>()(
       resetToSeed: () => set({ records: makeSeed() }),
       clearAll: () => set({ records: [] }),
     }),
-    { name: "growthlens-records" }
+    {
+      name: "growthlens-records",
+      merge: (persisted, current) => {
+        const p = persisted as Partial<RecordsState>;
+        // localStorage에 빈 배열이 저장돼 있으면 seed 유지
+        if (!p.records || p.records.length === 0) return current;
+        return { ...current, ...p };
+      },
+    }
   )
 );
