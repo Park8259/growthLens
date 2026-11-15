@@ -15,10 +15,22 @@ const DURATION: Record<TaskType, number> = {
   ball_play: 60,
 };
 
+function mockAmbient() {
+  const both = 45 + Math.random() * 15;
+  return {
+    bothInFrameSec: both,
+    caregiverOrientSec: both * (0.5 + Math.random() * 0.3),
+    activitySec: both * (0.3 + Math.random() * 0.3),
+    contactSec: both * (0.05 + Math.random() * 0.1),
+  };
+}
+
 function mockResult(taskType: TaskType): AnalysisResult {
-  if (taskType === "name_response") return { status: "success", metric: { value: 2.4, unit: "seconds", label: "호명 후 반응 지연" } };
-  if (taskType === "imitation") return { status: "success", metric: { value: 3.1, unit: "seconds", label: "모방까지의 지연" } };
-  return { status: "success", metric: { value: 4, unit: "count", label: "주고받은 횟수" } };
+  if (taskType === "name_response")
+    return { status: "success", metric: { value: +(2 + Math.random() * 3).toFixed(1), unit: "seconds", label: "호명 후 반응 지연" } };
+  if (taskType === "imitation")
+    return { status: "success", metric: { value: +(2 + Math.random() * 3).toFixed(1), unit: "seconds", label: "모방까지의 지연" }, ambient: mockAmbient() };
+  return { status: "success", metric: { value: Math.floor(2 + Math.random() * 5), unit: "count", label: "주고받은 횟수" }, ambient: mockAmbient() };
 }
 
 type Phase = "ready" | "recording" | "analyzing";
