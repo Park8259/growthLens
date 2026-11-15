@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useRecordsStore } from "../../store/records";
-import type { TaskType, AnalysisResult } from "../../types/analysis";
+import { analyzeVideo } from "../../engine/analyzeVideo";
+import type { TaskType } from "../../types/analysis";
 
 const TASK_LABEL: Record<TaskType, string> = {
   name_response: "호명반응",
@@ -15,73 +16,117 @@ const DURATION: Record<TaskType, number> = {
   ball_play: 60,
 };
 
-function mockAmbient() {
-  const both = 45 + Math.random() * 15;
-  return {
-    bothInFrameSec: both,
-    caregiverOrientSec: both * (0.5 + Math.random() * 0.3),
-    activitySec: both * (0.3 + Math.random() * 0.3),
-    contactSec: both * (0.05 + Math.random() * 0.1),
-  };
-}
+type Phase = "init" | "ready" | "recording" | "analyzing" | "error";
 
-function mockResult(taskType: TaskType): AnalysisResult {
-  if (taskType === "name_response")
-    return { status: "success", metric: { value: +(2 + Math.random() * 3).toFixed(1), unit: "seconds", label: "호명 후 반응 지연" } };
-  if (taskType === "imitation")
-    return { status: "success", metric: { value: +(2 + Math.random() * 3).toFixed(1), unit: "seconds", label: "모방까지의 지연" }, ambient: mockAmbient() };
-  return { status: "success", metric: { value: Math.floor(2 + Math.random() * 5), unit: "count", label: "주고받은 횟수" }, ambient: mockAmbient() };
+function playBeep() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    osc.connect(ctx.destination);
+    osc.frequency.value = 880;
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15);
+  } catch { /* ignore */ }
 }
-
-type Phase = "ready" | "recording" | "analyzing";
 
 export default function RecordingScreen() {
   const { taskType } = useParams<{ taskType: TaskType }>();
   const navigate = useNavigate();
   const addRecord = useRecordsStore((s) => s.addRecord);
-
-  const [phase, setPhase] = useState<Phase>("ready");
-  const [countdown, setCountdown] = useState(3);
-  const [elapsed, setElapsed] = useState(0);
-  const [stimulusFlash, setStimulusFlash] = useState(false);
-  const stimulusTimestampRef = useRef<number | null>(null);
   const task = (taskType ?? "name_response") as TaskType;
   const duration = DURATION[task];
   const needsStimulus = task === "name_response" || task === "imitation";
 
-  // Countdown phase
+  const [phase, setPhase] = useState<Phase>("init");
+  const [countdown, setCountdown] = useState(3);
+  const [elapsed, setElapsed] = useState(0);
+  const [stimulusFlash, setStimulusFlash] = useState(false);
+  const [analyzeProgress, setAnalyzeProgress] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordingStartRef = useRef<number>(0);
+  const stimulusTimestampRef = useRef<number | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+
+  // 카메라 초기화
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        });
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoPreviewRef.current) {
+          videoPreviewRef.current.srcObject = stream;
+        }
+        setPhase("ready");
+      } catch {
+        if (!cancelled) {
+          setErrorMsg("카메라 접근이 거부됐습니다. 브라우저 설정에서 카메라를 허용해 주세요.");
+          setPhase("error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
+
+  // 카운트다운
   useEffect(() => {
     if (phase !== "ready") return;
-    if (countdown <= 0) { setPhase("recording"); return; }
+    if (countdown <= 0) {
+      startRecording();
+      return;
+    }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [phase, countdown]);
 
-  // Recording phase
+  const startRecording = useCallback(() => {
+    const stream = streamRef.current;
+    if (!stream) return;
+
+    chunksRef.current = [];
+    const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"]
+      .find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
+
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    recorder.start(500); // 0.5초마다 chunk
+    recorderRef.current = recorder;
+    recordingStartRef.current = performance.now();
+    setPhase("recording");
+  }, []);
+
+  // 녹화 타이머
   useEffect(() => {
     if (phase !== "recording") return;
     const t = setInterval(() => {
       setElapsed((e) => {
         const next = e + 1;
 
-        // Stimulus at 5s, 10s, 15s...
-        if (needsStimulus && next % 5 === 0) {
-          if (stimulusTimestampRef.current === null) stimulusTimestampRef.current = performance.now();
+        // 자극 신호: 5초, 10초, 15초 (최대 3회)
+        if (needsStimulus && next % 5 === 0 && next <= 15) {
+          if (stimulusTimestampRef.current === null) {
+            // 녹화 시작 기준 ms
+            stimulusTimestampRef.current = performance.now() - recordingStartRef.current;
+          }
           setStimulusFlash(true);
           setTimeout(() => setStimulusFlash(false), 400);
-          try {
-            const ctx = new AudioContext();
-            const osc = ctx.createOscillator();
-            osc.connect(ctx.destination);
-            osc.frequency.value = 880;
-            osc.start();
-            osc.stop(ctx.currentTime + 0.15);
-          } catch { /* ignore */ }
+          playBeep();
         }
 
         if (next >= duration) {
           clearInterval(t);
-          setPhase("analyzing");
+          stopAndAnalyze();
         }
         return next;
       });
@@ -89,51 +134,117 @@ export default function RecordingScreen() {
     return () => clearInterval(t);
   }, [phase, duration, needsStimulus]);
 
-  // Analyzing phase
-  useEffect(() => {
-    if (phase !== "analyzing") return;
-    const result = mockResult(task);
-    addRecord({ taskType: task, recordedAt: Date.now(), result });
-    const t = setTimeout(() => navigate(`/result/${task}`, { state: { result } }), 2000);
-    return () => clearTimeout(t);
-  }, [phase, task, addRecord, navigate]);
+  const stopAndAnalyze = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+
+    setPhase("analyzing");
+    setAnalyzeProgress("영상 처리 중...");
+
+    recorder.onstop = async () => {
+      const mimeType = recorder.mimeType || "video/webm";
+      const blob = new Blob(chunksRef.current, { type: mimeType });
+
+      try {
+        setAnalyzeProgress("모델 로딩 중...");
+        const result = await analyzeVideo({
+          videoBlob: blob,
+          taskType: task,
+          stimulusTimestamp: stimulusTimestampRef.current ?? undefined,
+        });
+
+        addRecord({ taskType: task, recordedAt: Date.now(), result });
+        navigate(`/result/${task}`, { state: { result } });
+      } catch (err) {
+        setErrorMsg(`분석 중 오류가 발생했습니다: ${err instanceof Error ? err.message : String(err)}`);
+        setPhase("error");
+      }
+    };
+
+    recorder.stop();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+  }, [task, addRecord, navigate]);
+
+  const handleCancel = () => {
+    recorderRef.current?.stop();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    navigate(-1);
+  };
 
   const remaining = duration - elapsed;
-  const bg = stimulusFlash ? "bg-blue-700" : phase === "recording" ? "bg-gray-900" : "bg-black";
+  const bg = stimulusFlash
+    ? "bg-blue-700"
+    : phase === "recording"
+    ? "bg-gray-900"
+    : "bg-black";
+
+  if (phase === "error") {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 gap-6 max-w-sm mx-auto">
+        <p className="text-sm text-gray-700 text-center">{errorMsg}</p>
+        <button onClick={() => navigate(-1)} className="px-6 py-3 rounded-2xl border border-gray-200 text-sm text-gray-700">
+          돌아가기
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className={`min-h-screen ${bg} flex flex-col items-center justify-center transition-colors duration-200`}>
-      {phase === "ready" && (
-        <>
-          <p className="text-gray-400 text-lg mb-6">{TASK_LABEL[task]}</p>
-          <p className="text-white" style={{ fontSize: 120, fontWeight: 700, lineHeight: 1 }}>{countdown}</p>
-          <p className="text-gray-400 mt-6 text-base">준비하세요</p>
-        </>
-      )}
+    <div className={`min-h-screen ${bg} flex flex-col items-center justify-center transition-colors duration-200 relative`}>
+      {/* 카메라 프리뷰 — 항상 렌더링, 준비/녹화 중에만 보임 */}
+      <video
+        ref={videoPreviewRef}
+        autoPlay
+        muted
+        playsInline
+        className={`absolute inset-0 w-full h-full object-cover opacity-30 ${
+          phase === "analyzing" || phase === "init" ? "hidden" : ""
+        }`}
+        style={{ transform: "scaleX(-1)" }} // 전면 카메라 좌우 반전
+      />
 
-      {phase === "recording" && (
-        <>
-          <p className="text-gray-400 text-base mb-4">녹화 중</p>
-          <p className="text-white" style={{ fontSize: 96, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{remaining}</p>
-          <p className="text-gray-500 mt-4 text-sm">초 남음</p>
-          {needsStimulus && (
-            <p className="text-blue-400 mt-8 text-base">
-              {stimulusFlash ? "● 신호 — 지금 행동하세요" : "신호음이 나면 행동하세요"}
+      <div className="relative z-10 flex flex-col items-center">
+        {phase === "init" && (
+          <p className="text-gray-400 text-base">카메라 준비 중...</p>
+        )}
+
+        {phase === "ready" && (
+          <>
+            <p className="text-gray-300 text-lg mb-6">{TASK_LABEL[task]}</p>
+            <p className="text-white font-bold tabular-nums" style={{ fontSize: 120, lineHeight: 1 }}>
+              {countdown || "시작"}
             </p>
-          )}
-        </>
-      )}
+            <p className="text-gray-400 mt-6 text-base">폰을 세워 두세요</p>
+          </>
+        )}
 
-      {phase === "analyzing" && (
-        <>
-          <div className="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin mb-6" />
-          <p className="text-white text-xl">분석 중...</p>
-        </>
-      )}
+        {phase === "recording" && (
+          <>
+            <p className="text-gray-400 text-base mb-4">녹화 중</p>
+            <p className="text-white font-bold tabular-nums" style={{ fontSize: 96, lineHeight: 1 }}>
+              {remaining}
+            </p>
+            <p className="text-gray-500 mt-4 text-sm">초 남음</p>
+            {needsStimulus && (
+              <p className="text-blue-300 mt-8 text-base">
+                {stimulusFlash ? "● 신호 — 지금 행동하세요" : "신호음이 나면 행동하세요"}
+              </p>
+            )}
+          </>
+        )}
 
-      {phase !== "analyzing" && (
+        {phase === "analyzing" && (
+          <>
+            <div className="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin mb-6" />
+            <p className="text-white text-xl mb-2">분석 중...</p>
+            <p className="text-gray-400 text-sm">{analyzeProgress}</p>
+          </>
+        )}
+      </div>
+
+      {(phase === "ready" || phase === "recording") && (
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleCancel}
           disabled={phase === "ready" || (phase === "recording" && elapsed < 5)}
           className="absolute bottom-16 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl border border-gray-600 text-gray-400 disabled:opacity-20 text-base"
         >
