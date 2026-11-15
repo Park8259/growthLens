@@ -73,11 +73,12 @@ export default function ResultScreen() {
   const { metric } = result;
   const unitLabel = metric?.unit === "seconds" ? "초" : "회";
 
-  const prevRecord = records
+  const taskRecords = records
     .filter((r) => r.taskType === task && r.result.status === "success")
-    .sort((a, b) => b.recordedAt - a.recordedAt)[0];
+    .sort((a, b) => b.recordedAt - a.recordedAt);
 
-  const prevValue = prevRecord?.result.metric?.value;
+  const latestRecord = taskRecords[0];
+  const prevValue = taskRecords[1]?.result.metric?.value;
 
   return (
     <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
@@ -122,6 +123,14 @@ export default function ResultScreen() {
         <button onClick={() => navigate("/tasks")} className="w-full py-4 rounded-2xl bg-gray-900 text-white font-semibold">
           다른 과제 하기
         </button>
+        {latestRecord && (
+          <button
+            onClick={() => navigate(`/replay/${latestRecord.id}`)}
+            className="w-full py-3 rounded-2xl border border-gray-200 text-sm text-gray-700"
+          >
+            측정 과정 보기
+          </button>
+        )}
         <button onClick={() => navigate("/timeline")} className="w-full py-3 rounded-2xl border border-gray-200 text-sm text-gray-700">
           기록 보기
         </button>

@@ -60,14 +60,23 @@ export default function TimelineScreen() {
               <p className="text-xs font-medium text-gray-400 mb-2">{date}</p>
               <div className="space-y-0">
                 {recs.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+                  <button
+                    key={r.id}
+                    onClick={() => navigate(`/replay/${r.id}`)}
+                    className="w-full flex items-center justify-between py-3 border-b border-gray-50 last:border-0 text-left"
+                  >
                     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                       {TASK_LABEL[r.taskType]}
                     </span>
-                    <span className={`text-sm font-medium ${r.result.status === "retry_needed" ? "text-orange-500" : "text-gray-900"}`}>
-                      {fmtMetric(r.result)}
-                    </span>
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-medium ${r.result.status === "retry_needed" ? "text-orange-500" : "text-gray-900"}`}>
+                        {fmtMetric(r.result)}
+                      </span>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round">
+                        <path d="M5 3l4 4-4 4" />
+                      </svg>
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
