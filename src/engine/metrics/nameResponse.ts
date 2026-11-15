@@ -1,6 +1,6 @@
 import type { AnalysisResult } from "../../types/analysis";
 
-export async function analyzeSocial(
+export async function analyzeNameResponse(
   _videoBlob: Blob,
   _stimulusTimestamp: number
 ): Promise<AnalysisResult> {

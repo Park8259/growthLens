@@ -1,7 +1,7 @@
 import type { AnalysisResult } from "../../types/analysis";
 
-export async function analyzeGrossMotor(
+export async function measureAmbient(
   _videoBlob: Blob
-): Promise<AnalysisResult> {
+): Promise<AnalysisResult["ambient"]> {
   throw new Error("Not implemented");
 }

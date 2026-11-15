@@ -1,9 +1,9 @@
-export type TaskType = "gross_motor" | "fine_motor" | "social";
+export type TaskType = "name_response" | "imitation" | "ball_play";
 
 export interface AnalysisInput {
   videoBlob: Blob;
   taskType: TaskType;
-  stimulusTimestamp?: number; // social 과제만: 호명 탭 시점(ms, 녹화 시작 기준)
+  stimulusTimestamp?: number; // name_response, imitation: 신호음 재생 시점(ms, 녹화 시작 기준)
 }
 
 export interface AnalysisResult {
@@ -14,4 +14,11 @@ export interface AnalysisResult {
     unit: "seconds" | "count";
     label: string;
   };
+  ambient?: {
+    bothInFrameSec: number;
+    caregiverOrientSec: number;
+    activitySec: number;
+    contactSec: number;
+  };
+  detail?: Record<string, number | boolean | string>;
 }

@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { mockPatients, mockAppointments } from "../../../data/mockDoctor";
-import { getPeerNorm, compareToNorm, HIGHER_IS_BETTER } from "../../../data/mockNorms";
+import { getPeerNorm } from "../../../data/mockNorms";
 import { useNotesStore } from "../../../store/notes";
 import type { TaskType } from "../../../types/analysis";
 
 const TASK_LABEL: Record<TaskType, string> = {
-  gross_motor: "대근육",
-  fine_motor:  "소근육",
-  social:      "사회성",
+  name_response: "호명반응",
+  imitation:     "동작 모방",
+  ball_play:     "공 주고받기",
 };
 
 const MS_PER_MONTH = (365.25 / 12) * 24 * 60 * 60 * 1000;
@@ -121,23 +121,17 @@ function RecordsTab({ patient }: { patient: typeof mockPatients[0] }) {
 
 /* ── 그래프 탭 ─────────────────────────────────────────────── */
 
+function median(arr: number[]): number {
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 !== 0 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
 function GraphsTab({ patient }: { patient: typeof mockPatients[0] }) {
-  const tasks: TaskType[] = ["gross_motor", "fine_motor", "social"];
+  const tasks: TaskType[] = ["name_response", "imitation", "ball_play"];
 
   return (
     <div className="px-5 py-5 space-y-7">
-      {/* 범례 */}
-      <div className="flex items-center gap-4 text-xs text-gray-500">
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block w-5 h-0.5 bg-gray-900 rounded" />
-          {patient.name}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block w-5 border-t-2 border-dashed border-gray-400" />
-          또래 평균
-        </span>
-      </div>
-
       {tasks.map((taskType) => {
         const data = patient.records
           .filter((r) => r.taskType === taskType && r.result.status === "success" && r.result.metric)
@@ -145,25 +139,17 @@ function GraphsTab({ patient }: { patient: typeof mockPatients[0] }) {
 
         if (data.length === 0) return null;
 
-        const values    = data.map((r) => r.result.metric!.value);
-        const normValues = data.map((r) => {
-          const ageAtRecord = Math.floor(
-            (r.recordedAt - new Date(patient.birthDate).getTime()) / MS_PER_MONTH
-          );
-          return getPeerNorm(taskType, ageAtRecord);
-        });
-
-        const latest   = values[values.length - 1];
-        const latestNorm = normValues[normValues.length - 1];
-        const unit     = data[0].result.metric!.unit;
+        const unit = data[0].result.metric!.unit;
         const unitLabel = unit === "seconds" ? "초" : "회";
-        const status   = compareToNorm(latest, latestNorm, HIGHER_IS_BETTER[taskType]);
+        const norm = getPeerNorm(taskType, Math.floor(
+          (data[data.length - 1].recordedAt - new Date(patient.birthDate).getTime()) / MS_PER_MONTH
+        ));
 
-        const statusConfig = {
-          good:      { text: "또래보다 양호해요",   color: "text-emerald-600" },
-          average:   { text: "또래 평균 수준이에요", color: "text-gray-500"    },
-          attention: { text: "주의 관찰이 필요해요", color: "text-orange-500"  },
-        }[status];
+        // 최근 3회 중앙값 시계열: 각 시점 i에서 max(0, i-2)~i 범위의 중앙값
+        const rollingMedians = data.map((_, i) => {
+          const window = data.slice(Math.max(0, i - 2), i + 1).map((r) => r.result.metric!.value);
+          return median(window);
+        });
 
         return (
           <div key={taskType}>
@@ -172,17 +158,30 @@ function GraphsTab({ patient }: { patient: typeof mockPatients[0] }) {
                 <span className="text-xs text-gray-400">{TASK_LABEL[taskType]}</span>
                 <p className="text-sm font-medium text-gray-800">{data[0].result.metric!.label}</p>
               </div>
-              <p className={`text-xs font-medium ${statusConfig.color}`}>
-                {statusConfig.text}
-              </p>
+              {norm !== null && (
+                <p className="text-xs text-gray-400">
+                  참고 <strong className="text-gray-600">{norm}{unitLabel}</strong>
+                </p>
+              )}
             </div>
 
-            <LineChart values={values} normValues={normValues} />
-
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
-              <span>최신 측정 <strong className="text-gray-900">{latest}{unitLabel}</strong></span>
-              <span>또래 평균 <strong className="text-gray-600">{latestNorm}{unitLabel}</strong></span>
-            </div>
+            {data.length < 3 ? (
+              <div className="bg-gray-50 rounded-2xl px-4 py-5 text-center">
+                <p className="text-xs text-gray-400">
+                  기록이 3회 이상 쌓이면 변화를 보여드립니다 (현재 {data.length}회)
+                </p>
+              </div>
+            ) : (
+              <>
+                <LineChart values={rollingMedians} />
+                <div className="flex justify-between mt-2 text-xs text-gray-500">
+                  <span>최근 3회 중앙값 <strong className="text-gray-900">{rollingMedians[rollingMedians.length - 1].toFixed(1)}{unitLabel}</strong></span>
+                  {norm !== null && (
+                    <span>TD 참고값 <strong className="text-gray-600">{norm}{unitLabel}</strong></span>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         );
       })}
@@ -190,16 +189,15 @@ function GraphsTab({ patient }: { patient: typeof mockPatients[0] }) {
   );
 }
 
-function LineChart({ values, normValues }: { values: number[]; normValues: number[] }) {
+function LineChart({ values }: { values: number[] }) {
   const W = 300;
   const H = 80;
   const pad = 12;
 
   if (values.length < 2) return null;
 
-  const all = [...values, ...normValues];
-  const min = Math.min(...all);
-  const max = Math.max(...all);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
   const range = max - min || 1;
 
   function toCoord(v: number, i: number, total: number) {
@@ -209,23 +207,16 @@ function LineChart({ values, normValues }: { values: number[]; normValues: numbe
     };
   }
 
-  const patientPts  = values.map((v, i) => toCoord(v, i, values.length));
-  const normPts     = normValues.map((v, i) => toCoord(v, i, normValues.length));
-
-  const toPath = (pts: { x: number; y: number }[]) =>
-    pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const pts = values.map((v, i) => toCoord(v, i, values.length));
+  const toPath = (ps: { x: number; y: number }[]) =>
+    ps.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
 
   return (
     <div className="bg-gray-50 rounded-2xl p-3">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-        {/* 또래 평균 — 점선 회색 */}
-        <path d={toPath(normPts)} stroke="#bbb" strokeWidth={1.5} fill="none"
-          strokeDasharray="4 4" strokeLinecap="round" strokeLinejoin="round" />
-
-        {/* 환자 — 실선 검정 */}
-        <path d={toPath(patientPts)} stroke="#111" strokeWidth={2} fill="none"
+        <path d={toPath(pts)} stroke="#111" strokeWidth={2} fill="none"
           strokeLinecap="round" strokeLinejoin="round" />
-        {patientPts.map((p, i) => (
+        {pts.map((p, i) => (
           <circle key={i} cx={p.x} cy={p.y} r={3.5} fill="#111" />
         ))}
       </svg>
