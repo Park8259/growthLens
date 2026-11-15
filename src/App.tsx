@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Splash from "./screens/splash";
 import RoleSelectScreen from "./screens/roleSelect";
 import OnboardingScreen from "./screens/onboarding";
 import TodayTasksScreen from "./screens/todayTasks";
@@ -14,9 +16,19 @@ import DoctorInviteScreen from "./screens/doctor/invite";
 import DoctorAppointmentsScreen from "./screens/doctor/appointments";
 import ReplayScreen from "./screens/replay";
 
+const SPLASH_MS = 1200;
+
 export default function App() {
+  // 앱을 열 때 로고 화면을 잠깐 보여 줌
+  const [splash, setSplash] = useState(true);
+  useEffect(() => {
+    const t = window.setTimeout(() => setSplash(false), SPLASH_MS);
+    return () => window.clearTimeout(t);
+  }, []);
+
   return (
     <BrowserRouter>
+      {splash && <Splash />}
       <Routes>
         {/* 역할 선택 */}
         <Route path="/" element={<RoleSelectScreen />} />
