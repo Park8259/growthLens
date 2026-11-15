@@ -1,7 +1,8 @@
 // 대근육 지표: 독립 서기 유지 시간
-// 흐름: 프레임 좌표 → 서기 여부(프레임별) → 0.6초 다듬기 → 서기 구간 → 가장 긴 구간(초)
+// 흐름: 프레임 좌표 → 서기 여부(프레임별) → 걷기 구분 → 0.6초 다듬기 → 서기 구간 → 가장 긴 구간(초)
 //
 // 판정 규칙과 기준값은 개인 프로토타입에서 실제 아기 영상 9개로 조정한 값입니다.
+// '서기'는 제자리에 서 있는 것만 셉니다. 선 채로 걸은 시간은 서기에서 뺍니다.
 // 전제: 카메라가 아이와 비슷한 높이에서, 전신이 나오게 촬영
 // 한계: 가구나 사람을 잡고 선 것도 서기로 셉니다 (지지물 감지는 아직 없음)
 
@@ -17,6 +18,12 @@ export const STANDING_THRESHOLDS = {
   standAnkleBelowHipNoKnee: 1.0, // 무릎이 안 보일 때는 더 엄격하게. 서기 ≈ 1.4(프로토타입 실측),
   //   1.0은 앉은 자세를 거르기 위한 추정값 — 실제 영상으로 확인 필요
   standKneeAngle: 140, // 무릎이 거의 펴짐(°)
+  // 걷기: 선 자세(무릎 각도는 안 봄, 걸을 때 굽혀지므로)에서 walkWindowSec 동안의 움직임
+  walkWindowSec: 1.0, // 움직임을 재는 시간 창
+  walkMinCoverage: 0.6, // 시간 창 중 선 자세 프레임이 이 비율 이상 있어야 판정
+  walkHipSpeed: 0.5, // ① 골반 이동 속도 (몸통 길이/초): 옆으로 지나가며 걷기
+  walkScaleRate: 0.15, // ② 몸 크기 변화율 (/초): 카메라 쪽으로 다가오거나 멀어지기
+  walkStepRange: 0.5, // ③ 두 발목 가로 간격의 변화폭 (몸통 길이): 가만히 서도 0.3 정도 흔들림
   smoothWindowSec: 0.6, // 이 시간 안에서 가장 많이 나온 상태로 다듬기 (깜빡임 제거)
   bridgeGapSec: 0.5, // 서기 구간 사이에 이보다 짧게 끊기면 하나로 이어 봄
   maxFrameGapSec: 0.5, // 프레임 간격이 이보다 크면 시간을 세지 않음
@@ -24,14 +31,25 @@ export const STANDING_THRESHOLDS = {
 export type StandingThresholds = typeof STANDING_THRESHOLDS;
 
 /** 프레임 하나의 상태 */
-export type FrameState = "standing" | "not_standing" | "unknown";
+export type FrameState = "standing" | "walking" | "not_standing" | "unknown";
 
 export interface StandingSummary {
   longestSec: number; // 가장 길게 이어진 서기 시간 = 지표값
   totalSec: number; // 서기 시간 합계
+  walkingSec: number; // 걸은 시간 (서기에서 뺀 시간)
   analyzedSec: number; // 판정 가능했던 시간
   unknownRatio: number; // 판정 불가 비율 (0~1)
   segments: { start: number; end: number; duration: number }[]; // 서기 구간
+}
+
+/** 프레임 하나의 판정 + 걷기 판정에 쓰는 값 */
+export interface FrameInfo {
+  state: "standing" | "not_standing";
+  upright: boolean; // 선 자세인지 (무릎 각도는 안 봄) — 걷기 후보
+  torso: number; // 몸통 길이(px)
+  hipX: number; // 골반 위치(px)
+  hipY: number;
+  ankleGap: number | null; // 두 발목의 가로 간격 (몸통 길이 대비), 둘 다 보일 때만
 }
 
 /** 프레임 하나 → 서기 여부. 어깨·골반이 안 보이거나 다리가 화면 밖이면 unknown */
@@ -41,7 +59,17 @@ export function classifyFrame(
   height: number,
   th: StandingThresholds = STANDING_THRESHOLDS
 ): FrameState {
-  if (!lm) return "unknown";
+  return frameInfo(lm, width, height, th)?.state ?? "unknown";
+}
+
+/** 프레임 하나 → 판정 정보. 판정할 수 없으면 null */
+export function frameInfo(
+  lm: PoseFrame["lm"],
+  width: number,
+  height: number,
+  th: StandingThresholds = STANDING_THRESHOLDS
+): FrameInfo | null {
+  if (!lm) return null;
   const P = (i: number) => toPx(lm, i, width, height, th.minVisibility);
 
   // 몸통 = 어깨~골반. 골반이 양쪽 다 보이면 양쪽 중점끼리,
@@ -60,9 +88,9 @@ export function classifyFrame(
     hip = lHip ?? rHip;
     shoulder = (lHip ? lSh : rSh) ?? mid(lSh, rSh);
   }
-  if (!shoulder || !hip) return "unknown";
+  if (!shoulder || !hip) return null;
   const torso = dist(shoulder, hip);
-  if (torso < 1) return "unknown";
+  if (torso < 1) return null;
 
   // 다리는 더 잘 보이는 쪽 하나만 사용 (옆에서 찍으면 반대쪽 다리가 가려짐)
   const leg = (h: number, k: number, a: number) => ({ hip: P(h), knee: P(k), ankle: P(a) });
@@ -72,7 +100,7 @@ export function classifyFrame(
   const best = score(left) >= score(right) ? left : right;
 
   const anyLeg = [LM.L_KNEE, LM.R_KNEE, LM.L_ANKLE, LM.R_ANKLE].some((i) => P(i) !== null);
-  if (!anyLeg) return "unknown"; // 다리가 화면 밖이면 서기인지 알 수 없음
+  if (!anyLeg) return null; // 다리가 화면 밖이면 서기인지 알 수 없음
 
   const tilt = tiltFromUp(hip, shoulder);
   const ankleBelowHip = best.ankle ? (best.ankle.y - hip.y) / torso : null;
@@ -86,7 +114,55 @@ export function classifyFrame(
     kneeAngle !== null
       ? kneeAngle >= th.standKneeAngle && ankleBelowHip !== null && ankleBelowHip >= th.standAnkleBelowHip
       : ankleBelowHip !== null && ankleBelowHip >= th.standAnkleBelowHipNoKnee;
-  return tilt <= th.standMaxTilt && legStraight ? "standing" : "not_standing";
+  const lAnkle = P(LM.L_ANKLE);
+  const rAnkle = P(LM.R_ANKLE);
+  return {
+    state: tilt <= th.standMaxTilt && legStraight ? "standing" : "not_standing",
+    upright: tilt <= th.standMaxTilt && ankleBelowHip !== null && ankleBelowHip >= th.standAnkleBelowHip,
+    torso,
+    hipX: hip.x,
+    hipY: hip.y,
+    ankleGap: lAnkle && rAnkle ? Math.abs(lAnkle.x - rAnkle.x) / torso : null,
+  };
+}
+
+/** 프레임별 상태에 '걷기'를 덧입힘 (프로토타입과 같은 규칙).
+ *  선 자세 프레임마다 앞뒤 walkWindowSec 동안의 움직임을 보고,
+ *  ① 골반 이동 ② 몸 크기 변화 ③ 발 내딛기 중 하나라도 기준을 넘으면 걷기 */
+export function applyWalking(
+  times: number[],
+  infos: (FrameInfo | null)[],
+  th: StandingThresholds = STANDING_THRESHOLDS
+): FrameState[] {
+  const half = th.walkWindowSec / 2;
+  let lo = 0;
+  let hi = 0;
+  return infos.map((info, i) => {
+    while (times[lo] < times[i] - half) lo++;
+    while (hi < times.length && times[hi] <= times[i] + half) hi++;
+    if (!info) return "unknown";
+    if (!info.upright) return info.state;
+
+    const win: { t: number; f: FrameInfo }[] = [];
+    for (let j = lo; j < hi; j++) {
+      const f = infos[j];
+      if (f?.upright) win.push({ t: times[j], f });
+    }
+    const first = win[0];
+    const last = win[win.length - 1];
+    const span = last.t - first.t;
+    if (span < th.walkWindowSec * th.walkMinCoverage) return info.state;
+
+    const torso = win.reduce((sum, w) => sum + w.f.torso, 0) / win.length;
+    const hipSpeed = Math.hypot(last.f.hipX - first.f.hipX, last.f.hipY - first.f.hipY) / torso / span;
+    const scaleRate = Math.abs(Math.log(last.f.torso / first.f.torso)) / span;
+    const gaps = win.map((w) => w.f.ankleGap).filter((g): g is number => g !== null);
+    const stepRange = gaps.length >= 3 ? Math.max(...gaps) - Math.min(...gaps) : 0;
+
+    const walking =
+      hipSpeed >= th.walkHipSpeed || scaleRate >= th.walkScaleRate || stepRange >= th.walkStepRange;
+    return walking ? "walking" : info.state;
+  });
 }
 
 /** 각 프레임을 앞뒤 windowSec 안에서 가장 많이 나온 상태로 바꿈 */
@@ -112,15 +188,13 @@ export function measureStanding(
 ): StandingSummary {
   const { frames, width, height } = track;
   const times = frames.map((f) => f.t);
-  const states = smooth(
-    times,
-    frames.map((f) => classifyFrame(f.lm, width, height, th)),
-    th.smoothWindowSec
-  );
+  const infos = frames.map((f) => frameInfo(f.lm, width, height, th));
+  const states = smooth(times, applyWalking(times, infos, th), th.smoothWindowSec);
 
   // 프레임마다 다음 프레임까지의 시간을 그 프레임 상태의 시간으로 셈
   const segments: StandingSummary["segments"] = [];
   let totalSec = 0;
+  let walkingSec = 0;
   let analyzedSec = 0;
   let unknownSec = 0;
   for (let i = 0; i < frames.length - 1; i++) {
@@ -135,6 +209,7 @@ export function measureStanding(
       continue;
     }
     analyzedSec += dt;
+    if (states[i] === "walking") walkingSec += dt;
     if (states[i] !== "standing") continue;
     totalSec += dt;
 
@@ -151,6 +226,7 @@ export function measureStanding(
   return {
     longestSec: segments.reduce((m, s) => Math.max(m, s.duration), 0),
     totalSec,
+    walkingSec,
     analyzedSec,
     unknownRatio: all > 0 ? unknownSec / all : 1,
     segments,

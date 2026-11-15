@@ -81,6 +81,7 @@ export default function EngineTest() {
                 <tbody>
                   <Row k="가장 긴 서기" v={sec(standing.longestSec)} />
                   <Row k="서기 합계" v={sec(standing.totalSec)} />
+                  <Row k="걷기 (서기에서 제외)" v={sec(standing.walkingSec)} />
                   <Row k="판정 가능 시간" v={sec(standing.analyzedSec)} />
                   <Row k="판정 불가 비율" v={`${Math.round(standing.unknownRatio * 100)}%`} />
                   <Row
