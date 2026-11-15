@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useRecordsStore } from "./store/records";
 import RoleSelectScreen from "./screens/roleSelect";
 import OnboardingScreen from "./screens/onboarding";
 import TodayTasksScreen from "./screens/todayTasks";
@@ -13,9 +15,19 @@ import PatientDetailScreen from "./screens/doctor/patientDetail";
 import DoctorInviteScreen from "./screens/doctor/invite";
 import DoctorAppointmentsScreen from "./screens/doctor/appointments";
 
+function SeedOnEmpty() {
+  const records = useRecordsStore((s) => s.records);
+  const resetToSeed = useRecordsStore((s) => s.resetToSeed);
+  useEffect(() => {
+    if (records.length === 0) resetToSeed();
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <SeedOnEmpty />
       <Routes>
         {/* 역할 선택 */}
         <Route path="/" element={<RoleSelectScreen />} />
