@@ -57,6 +57,8 @@ export default function TodayTasksScreen() {
   const navigate = useNavigate();
   const profile = useChildStore((s) => s.profile);
   const records = useRecordsStore((s) => s.records);
+  const resetToSeed = useRecordsStore((s) => s.resetToSeed);
+  const clearAll = useRecordsStore((s) => s.clearAll);
 
   useEffect(() => {
     if (!profile) navigate("/");
@@ -110,6 +112,22 @@ export default function TodayTasksScreen() {
             </button>
           );
         })}
+      </div>
+
+      {/* 목데이터 컨트롤 — 디자인팀 데모용 */}
+      <div className="px-5 pb-2 flex gap-2">
+        <button
+          onClick={resetToSeed}
+          className="flex-1 py-2 rounded-xl border border-dashed border-gray-300 text-xs text-gray-400"
+        >
+          목데이터 넣기
+        </button>
+        <button
+          onClick={clearAll}
+          className="flex-1 py-2 rounded-xl border border-dashed border-gray-300 text-xs text-gray-400"
+        >
+          데이터 초기화
+        </button>
       </div>
 
       <BottomNav items={NAV} />
