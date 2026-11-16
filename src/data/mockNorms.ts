@@ -16,11 +16,11 @@ const MIN_NORM_MONTHS: Partial<Record<TaskType, number>> = {
 };
 
 /**
- * 그래프에 칠할 또래 참고 범위. 논문 값이 있는 과제만 있어요.
- * name_response: 평균 3.62초 ± 표준편차 3.25초 → 0.4~6.9초 (18~48개월 연구)
+ * 그래프 아래에 글자로만 보여주는 참고값 (docs/screens.md 표현 규칙: 띠·비교 문구 없이 출처와 함께).
+ * 논문 값이 있는 과제만 있어요.
  */
-export const PEER_BAND: Partial<Record<TaskType, { lo: number; hi: number; note: string }>> = {
-  name_response: { lo: 0.4, hi: 6.9, note: "18~48개월 연구 기준" },
+export const PEER_REFERENCE: Partial<Record<TaskType, string>> = {
+  name_response: "참고 평균 3.62초 (전근아·김휘영 2025, 18~48개월)",
 };
 
 export function getPeerNorm(taskType: TaskType, ageMonths: number): number | null {

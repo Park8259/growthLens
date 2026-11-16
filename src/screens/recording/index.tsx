@@ -28,6 +28,28 @@ function playBeep() {
   } catch { /* 소리를 못 내도 녹화는 계속 */ }
 }
 
+/**
+ * 녹화 형식 고르기. 녹화가 되는 형식 중에서 이 브라우저가 "다시 열 수 있는" 형식만 골라요.
+ * (아이폰 사파리는 webm으로 녹화는 되지만 다시 열지 못할 수 있어서, 그때는 mp4를 씀)
+ */
+const RECORDING_TYPES = [
+  "video/webm;codecs=vp9",
+  "video/webm;codecs=vp8",
+  "video/webm",
+  "video/mp4;codecs=avc1",
+  "video/mp4",
+];
+function pickRecordingType(): string {
+  const probe = document.createElement("video");
+  const recordable = RECORDING_TYPES.filter((m) => MediaRecorder.isTypeSupported(m));
+  return (
+    recordable.find((m) => probe.canPlayType(m) === "probably") ??
+    recordable.find((m) => probe.canPlayType(m) === "maybe") ??
+    recordable[0] ??
+    ""
+  );
+}
+
 const mmss = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
 
 export default function RecordingScreen() {
@@ -103,8 +125,7 @@ export default function RecordingScreen() {
     if (!stream) return;
     chunksRef.current = [];
     stimulusTimestampRef.current = null;
-    const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"]
-      .find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
+    const mimeType = pickRecordingType();
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     recorder.start(500);
@@ -121,9 +142,8 @@ export default function RecordingScreen() {
     setPhase("analyzing");
     recorder.onstop = async () => {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "video/webm" });
-      // 원인 확인용: 녹화 결과 크기·형식
+      // 원인 확인용: 녹화 결과 크기·형식 (오류 화면에 함께 표시)
       const info = `${chunksRef.current.length}조각, ${(blob.size / 1024 / 1024).toFixed(1)}MB, ${blob.type || "형식 없음"}`;
-      console.info("[recording]", info);
       try {
         const result = await analyzeVideo({
           videoBlob: blob,

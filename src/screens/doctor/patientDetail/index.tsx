@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { mockPatients, nextAppointment, lastVisit, isoDay, type MockPatient } from "../../../data/mockDoctor";
-import { PEER_BAND } from "../../../data/mockNorms";
+import { PEER_REFERENCE } from "../../../data/mockNorms";
 import { useNotesStore } from "../../../store/notes";
 import { Pill } from "../../../components/ParentNav";
 import TaskIcon from "../../../components/TaskIcon";
@@ -140,7 +140,7 @@ function SummaryTab({ patient }: { patient: MockPatient }) {
                 <b className="text-p-title">{b.value}{unitOf(b.unit)}</b>
               </span>
               {!same && (
-                <span className={`flex items-center gap-0.5 text-[13px] font-bold ${up ? "text-brand" : "text-p-light"}`}>
+                <span className="flex items-center gap-0.5 text-[13px] font-bold text-brand-deep">
                   {up ? <ArrowUpIcon size={16} /> : <ArrowDownIcon size={16} />}
                   {up ? "늘었어요" : "줄었어요"}
                 </span>
@@ -275,9 +275,9 @@ function GraphTab({ patient }: { patient: MockPatient }) {
           </button>
         ))}
       </div>
+      {/* docs/screens.md 표현 규칙: 또래 범위 띠·비교 문구·경고색 없이 값과 변화만 */}
       <div className="mt-4 flex items-center gap-4 text-xs text-p-gray">
         <span className="flex items-center gap-1.5"><span className="h-0.5 w-3 bg-brand-icon" />{patient.name}</span>
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-3 bg-brand-soft" />또래 범위</span>
       </div>
 
       <div className="mt-3 space-y-3">
@@ -288,14 +288,10 @@ function GraphTab({ patient }: { patient: MockPatient }) {
           if (data.length === 0) return null;
           const unit = data[0].result.metric!.unit;
           const values = data.map((r) => r.result.metric!.value);
-          const band = PEER_BAND[task];
+          const reference = PEER_REFERENCE[task];
           const last = values[values.length - 1];
           const prev = values[values.length - 2];
-          const badge = band
-            ? last > band.hi ? { text: "범위보다 길어요", warn: false } : last < band.lo ? { text: "범위보다 짧아요", warn: false } : { text: "범위 안이에요", warn: false }
-            : prev !== undefined && prev !== last
-              ? { text: `최근 2회 ${last > prev ? "늘었어요" : "줄었어요"}`, warn: true }
-              : null;
+          const badge = prev !== undefined && prev !== last ? `최근 2회 ${last > prev ? "늘었어요" : "줄었어요"}` : null;
           return (
             <div key={task} className="rounded-2xl border border-p-line px-4 pt-4 pb-3.5">
               <div className="flex items-start justify-between">
@@ -303,12 +299,12 @@ function GraphTab({ patient }: { patient: MockPatient }) {
                   <p className="text-xs text-p-gray">{CATEGORY[task]}</p>
                   <p className="mt-1 text-base font-bold text-p-title">{TASK_LABEL[task]}</p>
                 </div>
-                {badge && <Pill tone={badge.warn ? "warn" : "blue"}>{badge.text}</Pill>}
+                {badge && <Pill>{badge}</Pill>}
               </div>
-              <Chart values={values} labels={data.map((r) => md(r.recordedAt))} unit={unitOf(unit)} band={band} />
-              <div className="mt-2 flex justify-between border-t border-p-line pt-3 text-[13px]">
-                <span className="text-p-gray">최근 <b className="text-p-title">{last}{unitOf(unit)}</b></span>
-                <span className="text-p-gray">{band ? `또래 범위 ${band.lo}~${band.hi}${unitOf(unit)} (${band.note})` : "또래 자료 없음"}</span>
+              <Chart values={values} labels={data.map((r) => md(r.recordedAt))} unit={unitOf(unit)} />
+              <div className="mt-2 border-t border-p-line pt-3 text-[13px]">
+                <span className="text-p-gray">최근 <b className="text-p-title tabular-nums">{last}{unitOf(unit)}</b></span>
+                {reference && <p className="mt-1 text-xs text-p-light">{reference}</p>}
               </div>
             </div>
           );
@@ -318,16 +314,15 @@ function GraphTab({ patient }: { patient: MockPatient }) {
   );
 }
 
-function Chart({ values, labels, unit, band }: { values: number[]; labels: string[]; unit: string; band?: { lo: number; hi: number } }) {
+function Chart({ values, labels, unit }: { values: number[]; labels: string[]; unit: string }) {
   const W = 320, H = 150, L = 22, R = 10, T = 10, B = 26;
-  const top = Math.ceil(Math.max(...values, band?.hi ?? 0) / 2) * 2 || 2;
+  const top = Math.ceil(Math.max(...values) / 2) * 2 || 2;
   const ticks = [0, 1, 2, 3, 4, 5, 6].map((i) => (top / 6) * i).filter((_, i) => i > 0 && (top <= 12 ? true : i % 2 === 0));
   const x = (i: number) => (values.length === 1 ? (L + W - R) / 2 : L + 6 + (i / (values.length - 1)) * (W - L - R - 12));
   const y = (v: number) => T + (1 - v / top) * (H - T - B);
   const d = values.map((v, i) => `${i ? "L" : "M"}${x(i)} ${y(v)}`).join(" ");
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" style={{ height: H }}>
-      {band && <rect x={L} y={y(Math.min(band.hi, top))} width={W - L - R} height={y(band.lo) - y(Math.min(band.hi, top))} fill="#E6F8FF" />}
       {ticks.map((t) => (
         <g key={t}>
           <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#E3E5E8" strokeWidth={1} />

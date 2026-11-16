@@ -26,10 +26,10 @@ const fmtSlash = (ts: number) => {
 };
 const dayKey = (ts: number) => new Date(ts).toDateString();
 
-/** 시간은 줄면 좋아짐, 횟수는 늘면 좋아짐 */
+/** 변화 방향만 사실대로 (docs/screens.md 표현 규칙: 좋다/나쁘다로 읽히는 말은 쓰지 않음) */
 function trendWord(first: number, last: number, unit: "seconds" | "count") {
   if (first === last) return "같음";
-  if (unit === "seconds") return last < first ? "빨라짐" : "느려짐";
+  if (unit === "seconds") return last < first ? "짧아짐" : "길어짐";
   return last > first ? "늘어남" : "줄어듦";
 }
 

@@ -60,7 +60,10 @@ export async function forEachVideoFrame(
   const url = URL.createObjectURL(videoBlob);
   try {
     video.src = url;
-    await once(video, "loadeddata");
+    // 아이폰 사파리는 화면에 붙지 않은 video에서 loadeddata를 안 보낼 때가 있어서
+    // 메타데이터까지만 기다림. 프레임은 아래에서 seek할 때마다 읽혀요.
+    video.load();
+    await once(video, "loadedmetadata");
     const duration = await resolveDuration(video);
 
     const step = 1 / fps;
