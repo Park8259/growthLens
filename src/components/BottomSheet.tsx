@@ -17,13 +17,13 @@ export default function BottomSheet({ open, onClose, title, subtitle, children }
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={title || undefined}
         className="relative w-full max-w-sm bg-white rounded-t-[24px] px-6 pt-2.5 pb-8 animate-sheet-up"
       >
         <div className="mx-auto h-[5px] w-10 rounded-full bg-[#D0D0D0]" />
-        <h2 className="mt-6 text-[20px] leading-6 font-bold text-ink">{title}</h2>
+        {title && <h2 className="mt-6 text-[20px] leading-6 font-bold text-ink">{title}</h2>}
         {subtitle && <p className="mt-2.5 text-sm text-ink-sub">{subtitle}</p>}
-        <div className="mt-5">{children}</div>
+        <div className={title ? "mt-5" : "mt-6"}>{children}</div>
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ export default function RoleSelectScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-white max-w-sm mx-auto px-6 pt-[87px]">
+    <div className="min-h-screen bg-white max-w-sm mx-auto px-6 pt-[87px] font-noto">
       {/* 로고 */}
       <div className="flex items-center gap-0.5">
         <img src="/images/logo-mark.png" alt="" className="h-[31px] w-auto" />

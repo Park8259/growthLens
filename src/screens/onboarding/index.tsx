@@ -86,7 +86,7 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
+    <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto font-noto">
       {step === 1 ? (
         <>
           <PageHeader title="출생 정보" onBack={() => navigate(-1)} />
