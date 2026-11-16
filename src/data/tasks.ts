@@ -54,7 +54,7 @@ export const TASK_RETRY_TIPS: Record<TaskType, string[]> = {
   ],
   imitation: [
     "아이와 마주 앉아서 시작해 주세요",
-    "폰을 조금 더 뒤로, 아이와 보호자가 함께 보이게 해주세요",
+    "폰을 더 뒤로, 아이와 보호자가 함께 보이게 해주세요",
     "동작은 아이가 보는 앞에서 크게 해주세요",
   ],
   ball_play: [
@@ -82,9 +82,15 @@ export function unitOf(unit: "seconds" | "count") {
   return unit === "seconds" ? "초" : "회";
 }
 
-/** 받침이 있으면 "하온이", 없으면 "지수" */
-export function nameWithI(name: string) {
-  const last = name.charCodeAt(name.length - 1);
-  if (last < 0xac00 || last > 0xd7a3) return name;
-  return (last - 0xac00) % 28 === 0 ? name : `${name}이`;
+/**
+ * 아이를 부르는 이름. 성을 떼고, 받침이 있으면 "이"를 붙여요.
+ * "김하온" → "하온이", "김철수" → "철수", "남궁민준" → "민준이", "하온" → "하온이"
+ * 두 글자 이름은 성인지 알 수 없어서 그대로 써요.
+ */
+export function nameWithI(fullName: string) {
+  const name = fullName.trim();
+  const given = name.length === 3 ? name.slice(1) : name.length === 4 ? name.slice(2) : name;
+  const last = given.charCodeAt(given.length - 1);
+  if (last < 0xac00 || last > 0xd7a3) return given;
+  return (last - 0xac00) % 28 === 0 ? given : `${given}이`;
 }

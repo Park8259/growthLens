@@ -80,9 +80,17 @@ export default function TimelineScreen() {
               <ul className="mt-[21px] space-y-[27px]">
                 {g.items.map((r) => {
                   const ok = r.result.status === "success";
+                  // 같은 과제를 이 기록 뒤에 다시 찍었으면 재촬영은 끝난 것
+                  const retaken = !ok && records.some((x) => x.taskType === r.taskType && x.recordedAt > r.recordedAt);
                   return (
                     <li key={r.id}>
-                      <button type="button" onClick={() => navigate(`/replay/${r.id}`)} className="flex w-full items-center px-1 text-left">
+                      <button
+                        type="button"
+                        // 재촬영 필요한 기록은 그 과제를 바로 다시 시작. 이미 다시 찍었으면 누를 수 없음
+                        disabled={retaken}
+                        onClick={() => navigate(ok ? `/replay/${r.id}` : `/task-guide/${r.taskType}`)}
+                        className="flex w-full items-center px-1 text-left"
+                      >
                         <span className={`flex h-[38px] w-[38px] items-center justify-center rounded-[10px] ${ok ? "bg-brand-soft text-brand-icon" : "bg-p-card text-[#9C9C9C]"}`}>
                           <TaskIcon task={r.taskType} size={19} />
                         </span>
@@ -94,6 +102,8 @@ export default function TimelineScreen() {
                           <span className="text-[17px] font-bold text-p-title tabular-nums">
                             {r.result.metric.value}{unitOf(r.result.metric.unit)}
                           </span>
+                        ) : retaken ? (
+                          <span className="flex h-[34px] items-center rounded-full bg-p-card px-3.5 text-sm font-bold text-p-light">다시 찍었어요</span>
                         ) : (
                           <span className="flex h-[34px] items-center rounded-full bg-warn-bg px-3.5 text-sm font-bold text-warn-text">재촬영 필요</span>
                         )}

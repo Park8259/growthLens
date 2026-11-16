@@ -121,6 +121,9 @@ export default function RecordingScreen() {
     setPhase("analyzing");
     recorder.onstop = async () => {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "video/webm" });
+      // 원인 확인용: 녹화 결과 크기·형식
+      const info = `${chunksRef.current.length}조각, ${(blob.size / 1024 / 1024).toFixed(1)}MB, ${blob.type || "형식 없음"}`;
+      console.info("[recording]", info);
       try {
         const result = await analyzeVideo({
           videoBlob: blob,
@@ -130,7 +133,7 @@ export default function RecordingScreen() {
         addRecord({ taskType: task, recordedAt: Date.now(), result });
         navigate(`/result/${task}`, { state: { result }, replace: true });
       } catch (err) {
-        setErrorMsg(`분석 중 문제가 생겼어요: ${err instanceof Error ? err.message : String(err)}`);
+        setErrorMsg(`분석 중 문제가 생겼어요: ${err instanceof Error ? err.message : String(err)}\n[녹화: ${info}]`);
         setPhase("error");
       }
     };
@@ -201,7 +204,7 @@ export default function RecordingScreen() {
   if (phase === "error") {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 gap-6 max-w-sm mx-auto">
-        <p className="text-[15px] text-p-body text-center">{errorMsg}</p>
+        <p className="text-[15px] text-p-body text-center whitespace-pre-line">{errorMsg}</p>
         <button onClick={() => navigate(-1)} className="h-[54px] px-8 rounded-[14px] bg-p-card text-base font-bold text-p-body">
           돌아가기
         </button>

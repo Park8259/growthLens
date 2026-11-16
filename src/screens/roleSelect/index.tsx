@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChildStore } from "../../store/child";
+import LogoReset from "../../components/LogoReset";
 
 type Role = "parent" | "doctor";
 
@@ -20,10 +21,7 @@ export default function RoleSelectScreen() {
   return (
     <div className="min-h-screen bg-white max-w-sm mx-auto px-6 pt-[87px] font-noto">
       {/* 로고 */}
-      <div className="flex items-center gap-0.5">
-        <img src="/images/logo-mark.png" alt="" className="h-[31px] w-auto" />
-        <img src="/images/logo-wordmark.png" alt="베베뷰" className="h-[36px] w-auto" />
-      </div>
+      <LogoReset />
 
       <h1 className="mt-1 text-[26px] leading-[31px] font-bold text-ink-strong">
         어떻게 사용하실 건가요?

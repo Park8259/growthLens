@@ -7,6 +7,7 @@ import { correctedAgeMonths } from "../../utils/ageCalc";
 import { mockDoctor } from "../../data/mockDoctor";
 import ParentNav, { Pill } from "../../components/ParentNav";
 import BottomSheet from "../../components/BottomSheet";
+import LogoReset from "../../components/LogoReset";
 import { BellIcon, ChevronRightIcon, MemoIcon } from "../../components/icons";
 import {
   TASK_LABEL, TASK_META, TASK_ORDER, TASK_SHORT, nameWithI, unitOf,
@@ -63,10 +64,7 @@ export default function TodayTasksScreen() {
       <div className="flex-1 px-5 pb-6">
         {/* 로고 + 알림 */}
         <div className="flex items-center justify-between pt-14">
-          <div className="flex items-center gap-0.5">
-            <img src="/images/logo-mark.png" alt="" className="h-[31px] w-auto" />
-            <img src="/images/logo-wordmark.png" alt="베베뷰" className="h-[36px] w-auto" />
-          </div>
+          <LogoReset />
           <button type="button" aria-label="알림" className="relative text-p-title" onClick={() => memo && setMemoOpen(true)}>
             <BellIcon size={24} />
             {memo && <span className="absolute right-0 top-0 h-[7px] w-[7px] rounded-full bg-warn-dot" />}
