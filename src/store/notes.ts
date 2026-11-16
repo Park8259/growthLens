@@ -7,6 +7,7 @@ export interface DoctorNote {
   date: string; // YYYY-MM-DD
   text: string;
   isShared: boolean; // true면 부모 앱에 공개
+  nextTasks?: string[]; // 다음 진료 전까지 보호자에게 보낼 관찰 과제
 }
 
 const SEED_NOTES: DoctorNote[] = [

@@ -15,6 +15,9 @@ import PatientDetailScreen from "./screens/doctor/patientDetail";
 import DoctorInviteScreen from "./screens/doctor/invite";
 import DoctorAppointmentsScreen from "./screens/doctor/appointments";
 import ReplayScreen from "./screens/replay";
+import DoctorTodayScreen from "./screens/doctor/today";
+import DoctorSceneScreen from "./screens/doctor/scene";
+import DoctorMeScreen from "./screens/doctor/me";
 
 const SPLASH_MS = 1200;
 
@@ -45,10 +48,13 @@ export default function App() {
         <Route path="/replay/:sessionId"   element={<ReplayScreen />} />
 
         {/* 의사 앱 */}
+        <Route path="/doctor"                element={<DoctorTodayScreen />} />
         <Route path="/doctor/patients"       element={<DoctorPatientsScreen />} />
         <Route path="/doctor/patients/:id"   element={<PatientDetailScreen />} />
+        <Route path="/doctor/patients/:id/scene/:recordId" element={<DoctorSceneScreen />} />
         <Route path="/doctor/invite"         element={<DoctorInviteScreen />} />
         <Route path="/doctor/appointments"   element={<DoctorAppointmentsScreen />} />
+        <Route path="/doctor/me"             element={<DoctorMeScreen />} />
       </Routes>
     </BrowserRouter>
   );

@@ -5,6 +5,24 @@ interface IconProps {
   className?: string;
 }
 
+export function ArrowDownIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 16 16".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path d="M7.83984 3.5V12.8333M11.8398 8.83333L7.83984 12.8333L3.83984 8.83333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
+export function ArrowUpIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 16 16".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path d="M8 12.6667V3.33337M12 7.33337L8 3.33337L4 7.33337" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
 export function BackIcon({ size, className }: IconProps) {
   const [, , w, h] = "0 0 24 24".split(" ").map(Number);
   return (
@@ -34,11 +52,30 @@ export function BellIcon({ size, className }: IconProps) {
   );
 }
 
+export function CalendarIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 20 20".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path d="M4.99984 4.16663H14.9998C16.1504 4.16663 17.0832 5.09937 17.0832 6.24996V15C17.0832 16.1506 16.1504 17.0833 14.9998 17.0833H4.99984C3.84924 17.0833 2.9165 16.1506 2.9165 15V6.24996C2.9165 5.09937 3.84924 4.16663 4.99984 4.16663Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M2.9165 8.33333H17.0832M6.6665 2.5V5.83333M13.3332 2.5V5.83333" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
 export function CheckIcon({ size, className }: IconProps) {
   const [, , w, h] = "0 0 14 14".split(" ").map(Number);
   return (
     <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 14 14" fill="none" className={className} aria-hidden>
       <path d="M2.91699 7.29167L5.54199 9.91667L11.0837 4.375" strokeWidth="1.63333" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
+export function Chevron20Icon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 20 20".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path d="M7.5 4.16663L13.3333 9.99996L7.5 15.8333" strokeWidth="1.66667" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
     </svg>
   );
 }
@@ -73,6 +110,16 @@ export function ImagePlaceholderIcon({ size, className }: IconProps) {
   );
 }
 
+export function InfoIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 16 16".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 16 16" fill="none" className={className} aria-hidden>
+      <path d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M8 7.33325V10.6666M8 5.33325H8.00667" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
 export function LockIcon({ size, className }: IconProps) {
   const [, , w, h] = "0 0 16 16".split(" ").map(Number);
   return (
@@ -92,12 +139,52 @@ export function MemoIcon({ size, className }: IconProps) {
   );
 }
 
+export function NavCalendarIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 24 24".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M6 5H18C19.3807 5 20.5 6.11929 20.5 7.5V18C20.5 19.3807 19.3807 20.5 18 20.5H6C4.61929 20.5 3.5 19.3807 3.5 18V7.5C3.5 6.11929 4.61929 5 6 5Z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M3.5 10H20.5M8 3V7M16 3V7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
 export function NavChangeIcon({ size, className }: IconProps) {
   const [, , w, h] = "0 0 24 24".split(" ").map(Number);
   return (
     <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
       <path d="M3 17L9 11L13 15L21 7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
       <path d="M15 7H21V13" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
+export function NavHomeIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 24 24".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M4 11L12 4L20 11V20H15V14H9V20H4V11Z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
+export function NavMeIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 24 24".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M16 8C16 10.2091 14.2091 12 12 12C9.79086 12 8 10.2091 8 8C8 5.79086 9.79086 4 12 4C14.2091 4 16 5.79086 16 8Z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M4 21C4 16.6 7.6 13 12 13C16.4 13 20 16.6 20 21" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
+export function NavPatientsIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 24 24".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M12.5 8C12.5 9.933 10.933 11.5 9 11.5C7.067 11.5 5.5 9.933 5.5 8C5.5 6.067 7.067 4.5 9 4.5C10.933 4.5 12.5 6.067 12.5 8Z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M2.5 20C2.5 16.4 5.4 13.5 9 13.5C12.6 13.5 15.5 16.4 15.5 20" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M16 4.6001C16.7614 4.78611 17.4383 5.22229 17.9223 5.83877C18.4063 6.45524 18.6693 7.21633 18.6693 8.0001C18.6693 8.78386 18.4063 9.54495 17.9223 10.1614C17.4383 10.7779 16.7614 11.2141 16 11.4001M18 13.8001C20.1 14.6001 21.5 16.8001 21.5 20.0001" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
     </svg>
   );
 }
@@ -140,6 +227,16 @@ export function PdfIcon({ size, className }: IconProps) {
   );
 }
 
+export function PencilIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 20 20".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path d="M3.3335 16.6667H6.66683L15.8335 7.50008L12.5002 4.16675L3.3335 13.3334V16.6667Z" strokeWidth="1.66667" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M11.25 5.41675L14.5833 8.75008" strokeWidth="1.66667" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
 export function PhoneIcon({ size, className }: IconProps) {
   const [, , w, h] = "0 0 20 20".split(" ").map(Number);
   return (
@@ -171,6 +268,36 @@ export function PlayIcon({ size, className }: IconProps) {
   );
 }
 
+export function PlayFillIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 24 24".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path d="M8 5V19L19 12L8 5Z" fill="currentColor"/>
+    </svg>
+  );
+}
+
+export function PlusIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 18 18".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 18 18" fill="none" className={className} aria-hidden>
+      <path d="M9 3.75V9M9 9V14.25M9 9H3.75M9 9H14.25" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
+export function QrIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 20 20".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path d="M4.16683 3.33325H7.50016C7.9604 3.33325 8.3335 3.70635 8.3335 4.16659V7.49992C8.3335 7.96016 7.9604 8.33325 7.50016 8.33325H4.16683C3.70659 8.33325 3.3335 7.96016 3.3335 7.49992V4.16659C3.3335 3.70635 3.70659 3.33325 4.16683 3.33325Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M12.4998 3.33325H15.8332C16.2934 3.33325 16.6665 3.70635 16.6665 4.16659V7.49992C16.6665 7.96016 16.2934 8.33325 15.8332 8.33325H12.4998C12.0396 8.33325 11.6665 7.96016 11.6665 7.49992V4.16659C11.6665 3.70635 12.0396 3.33325 12.4998 3.33325Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M4.16683 11.6667H7.50016C7.9604 11.6667 8.3335 12.0398 8.3335 12.5001V15.8334C8.3335 16.2937 7.9604 16.6667 7.50016 16.6667H4.16683C3.70659 16.6667 3.3335 16.2937 3.3335 15.8334V12.5001C3.3335 12.0398 3.70659 11.6667 4.16683 11.6667Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M11.6665 15.0001H13.3332M14.9998 11.6667H16.6665M11.6665 11.6667H13.3332V13.3334H11.6665V11.6667ZM14.9998 15.0001H16.6665V16.6667H14.9998V15.0001Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
 export function QuestionIcon({ size, className }: IconProps) {
   const [, , w, h] = "0 0 18 18".split(" ").map(Number);
   return (
@@ -186,6 +313,16 @@ export function RulerIcon({ size, className }: IconProps) {
     <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
       <path d="M2.5 13.3333L13.3333 2.5L17.5 6.66667L6.66667 17.5L2.5 13.3333Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
       <path d="M5.8335 10L7.50016 11.6667M8.3335 7.5L10.0002 9.16667M10.8335 5L12.5002 6.66667" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+    </svg>
+  );
+}
+
+export function SearchIcon({ size, className }: IconProps) {
+  const [, , w, h] = "0 0 20 20".split(" ").map(Number);
+  return (
+    <svg width={size ?? w} height={size ? (size * h) / w : h} viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+      <path d="M15.0002 9.16671C15.0002 12.3884 12.3885 15 9.16683 15C5.94517 15 3.3335 12.3884 3.3335 9.16671C3.3335 5.94505 5.94517 3.33337 9.16683 3.33337C12.3885 3.33337 15.0002 5.94505 15.0002 9.16671Z" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
+      <path d="M13.75 13.75L17.5 17.5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" stroke="currentColor"/>
     </svg>
   );
 }

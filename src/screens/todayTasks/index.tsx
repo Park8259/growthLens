@@ -4,11 +4,12 @@ import { useChildStore } from "../../store/child";
 import { useRecordsStore, type SessionRecord } from "../../store/records";
 import { useNotesStore } from "../../store/notes";
 import { correctedAgeMonths } from "../../utils/ageCalc";
+import { mockDoctor } from "../../data/mockDoctor";
 import ParentNav, { Pill } from "../../components/ParentNav";
 import BottomSheet from "../../components/BottomSheet";
 import { BellIcon, ChevronRightIcon, MemoIcon } from "../../components/icons";
 import {
-  TASK_LABEL, TASK_META, TASK_ORDER, TASK_SHORT, NEXT_VISIT, nameWithI, unitOf,
+  TASK_LABEL, TASK_META, TASK_ORDER, TASK_SHORT, nameWithI, unitOf,
 } from "../../data/tasks";
 import TaskIcon from "../../components/TaskIcon";
 import type { TaskType } from "../../types/analysis";
@@ -127,7 +128,7 @@ export default function TodayTasksScreen() {
           >
             <MemoIcon size={22} className="text-brand-deep flex-shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-p-title">{NEXT_VISIT.doctor} 선생님 메모가 도착했어요</p>
+              <p className="text-sm font-bold text-p-title">{mockDoctor.name} 선생님 메모가 도착했어요</p>
               <p className="mt-1.5 truncate text-[13px] text-p-body">{memo.text}</p>
             </div>
             <ChevronRightIcon size={18} className="text-brand-deep flex-shrink-0" />
@@ -138,7 +139,7 @@ export default function TodayTasksScreen() {
       <ParentNav />
 
       {memoOpen && memo && (
-        <BottomSheet open onClose={() => setMemoOpen(false)} title={`${NEXT_VISIT.doctor} 선생님 메모`} subtitle={memo.date.replace(/-/g, ". ")}>
+        <BottomSheet open onClose={() => setMemoOpen(false)} title={`${mockDoctor.name} 선생님 메모`} subtitle={memo.date.replace(/-/g, ". ")}>
           <p className="text-[15px] leading-6 text-p-body whitespace-pre-line">{memo.text}</p>
           <button
             type="button"

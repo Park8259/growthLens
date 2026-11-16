@@ -15,6 +15,14 @@ const MIN_NORM_MONTHS: Partial<Record<TaskType, number>> = {
   name_response: 18,
 };
 
+/**
+ * 그래프에 칠할 또래 참고 범위. 논문 값이 있는 과제만 있어요.
+ * name_response: 평균 3.62초 ± 표준편차 3.25초 → 0.4~6.9초 (18~48개월 연구)
+ */
+export const PEER_BAND: Partial<Record<TaskType, { lo: number; hi: number; note: string }>> = {
+  name_response: { lo: 0.4, hi: 6.9, note: "18~48개월 연구 기준" },
+};
+
 export function getPeerNorm(taskType: TaskType, ageMonths: number): number | null {
   const minAge = MIN_NORM_MONTHS[taskType];
   if (minAge !== undefined && ageMonths < minAge) return null;

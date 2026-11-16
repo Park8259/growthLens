@@ -13,7 +13,7 @@ export default function RoleSelectScreen() {
   function choose(role: Role) {
     if (picked) return;
     setPicked(role);
-    const to = role === "parent" ? (profile ? "/tasks" : "/onboarding") : "/doctor/patients";
+    const to = role === "parent" ? (profile ? "/tasks" : "/onboarding") : "/doctor";
     window.setTimeout(() => navigate(to), 180);
   }
 

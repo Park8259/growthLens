@@ -1,112 +1,126 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { mockDoctor, mockPatients, mockAppointments } from "../../../data/mockDoctor";
-import BottomNav from "../../../components/BottomNav";
-import { doctorNavItems } from "../_nav";
+import { mockPatients, nextAppointment, isoDay } from "../../../data/mockDoctor";
+import { Pill } from "../../../components/ParentNav";
+import { Chevron20Icon, PlusIcon, SearchIcon } from "../../../components/icons";
+import DoctorNav, { Avatar } from "../_nav";
+import { ago, genderShort, slash } from "../format";
 
-function daysAgo(dateStr: string): string {
-  const diff = Math.floor(
-    (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (diff === 0) return "오늘";
-  if (diff === 1) return "어제";
-  return `${diff}일 전`;
-}
-
-function nextAppointmentLabel(patientId: string): string | null {
-  const today = new Date().toISOString().split("T")[0];
-  const upcoming = mockAppointments
-    .filter((a) => a.patientId === patientId && a.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
-  if (!upcoming) return null;
-  const d = new Date(upcoming.date);
-  return `${d.getMonth() + 1}/${d.getDate()} 예약`;
-}
+// Figma 의사 버전 "환자목록"
+type Filter = "all" | "new" | "week" | "pending";
 
 export default function DoctorPatientsScreen() {
   const navigate = useNavigate();
+  const [now] = useState(() => Date.now());
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+
+  const weekEnd = isoDay(7);
+  const rows = mockPatients.map((p) => {
+    const last = [...p.records].sort((a, b) => b.recordedAt - a.recordedAt)[0];
+    const next = nextAppointment(p.id);
+    const retake = last?.result.status === "retry_needed";
+    return { p, last, next, retake };
+  });
+
+  const counts = {
+    new: rows.filter((r) => r.p.newRecords > 0).length,
+    week: rows.filter((r) => r.next && r.next.date <= weekEnd).length,
+    pending: rows.filter((r) => r.p.pending).length,
+  };
+
+  const shown = rows
+    .filter(({ p }) => !query.trim() || p.name.includes(query.trim()) || p.parentName.includes(query.trim()))
+    .filter((r) =>
+      filter === "all" ? true
+        : filter === "new" ? r.p.newRecords > 0
+          : filter === "week" ? Boolean(r.next && r.next.date <= weekEnd)
+            : Boolean(r.p.pending),
+    );
+
+  const FILTERS: { key: Filter; label: string }[] = [
+    { key: "all", label: "전체" },
+    { key: "new", label: `새 기록 ${counts.new}` },
+    { key: "week", label: "이번 주 진료" },
+    { key: "pending", label: "연결 대기" },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col max-w-sm mx-auto">
-      {/* 헤더 */}
-      <div className="bg-white px-6 pt-14 pb-5 border-b border-gray-100">
-        <p className="text-xs text-gray-400 mb-0.5">{mockDoctor.specialty} · {mockDoctor.hospital}</p>
+    <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
+      <div className="flex-1 px-5 pt-16 pb-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-[22px] font-bold text-gray-900">
-            {mockDoctor.name} 선생님
+          <h1 className="text-2xl font-bold text-p-title">
+            환자 <span className="text-brand">{mockPatients.length}</span>
           </h1>
-          <button
-            onClick={() => navigate("/doctor/invite")}
-            className="flex items-center gap-1.5 bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-full"
-          >
-            <span className="text-base leading-none">+</span>
-            환자 초대
+          <button type="button" onClick={() => navigate("/doctor/invite")} className="flex h-[38px] items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-bold text-white">
+            <PlusIcon size={18} />
+            환자 연결
           </button>
         </div>
 
-        {/* 요약 통계 */}
-        <div className="flex gap-4 mt-4">
-          <Stat label="환자" value={`${mockPatients.length}명`} />
-          <div className="w-px bg-gray-100" />
-          <Stat label="이번 주 측정" value="5건" />
-          <div className="w-px bg-gray-100" />
-          <Stat label="예정 예약" value="2건" />
-        </div>
-      </div>
+        <label className="mt-2.5 flex h-[46px] items-center gap-2.5 rounded-xl bg-p-card px-3.5">
+          <SearchIcon size={20} className="text-p-light" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="아이 이름, 보호자 이름 검색"
+            className="flex-1 bg-transparent text-[15px] text-p-title placeholder:text-p-light focus:outline-none"
+          />
+        </label>
 
-      {/* 환자 목록 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {mockPatients.map((p) => {
-          const upcoming = nextAppointmentLabel(p.id);
-          return (
+        <div className="mt-3.5 flex gap-2 overflow-x-auto no-scrollbar">
+          {FILTERS.map(({ key, label }) => (
             <button
-              key={p.id}
-              onClick={() => navigate(`/doctor/patients/${p.id}`)}
-              className="w-full bg-white rounded-2xl p-4 text-left flex items-center gap-4 shadow-sm active:bg-gray-50 transition-colors"
+              key={key}
+              type="button"
+              onClick={() => setFilter(key)}
+              className={`h-[38px] flex-shrink-0 rounded-xl px-3.5 text-sm ${
+                filter === key ? "bg-brand font-bold text-white" : "border border-p-line bg-white text-p-body"
+              }`}
             >
-              {/* 아바타 */}
-              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <span className="text-lg font-bold text-gray-500">
-                  {p.name[1]}
-                </span>
-              </div>
-
-              {/* 정보 */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-gray-900">{p.name}</span>
-                  <span className="text-xs text-gray-400">
-                    {p.ageMonths}개월 · {p.gender === "male" ? "남" : "여"}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {p.lastRecordedAt ? `마지막 측정 ${daysAgo(p.lastRecordedAt)}` : "측정 기록 없음"}
-                  {" · "}총 {p.recordCount}회
-                </p>
-                {upcoming && (
-                  <span className="inline-block mt-1.5 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                    {upcoming}
-                  </span>
-                )}
-              </div>
-
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M6 4l4 4-4 4" />
-              </svg>
+              {label}
             </button>
-          );
-        })}
+          ))}
+        </div>
+
+        <ul className="mt-5 space-y-3">
+          {shown.map(({ p, last, next, retake }) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => !p.pending && navigate(`/doctor/patients/${p.id}`)}
+                className="flex w-full items-center rounded-2xl border border-p-line px-4 py-4 text-left"
+              >
+                <Avatar name={p.name} muted={Boolean(p.pending)} />
+                <span className="ml-3.5 flex-1">
+                  <span className="flex items-baseline gap-2">
+                    <span className={`text-[17px] font-bold ${p.pending ? "text-p-light" : "text-p-title"}`}>{p.name}</span>
+                    <span className="text-[13px] text-p-light">{p.ageMonths}개월 · {genderShort(p.gender)}</span>
+                  </span>
+                  <span className="mt-1.5 block text-[13px] text-p-gray">
+                    {p.pending
+                      ? "보호자 수락을 기다리고 있어요"
+                      : `마지막 기록 ${last ? ago(last.recordedAt, now) : "없음"} · 총 ${p.records.length}회`}
+                  </span>
+                  <span className="mt-2 flex gap-1.5">
+                    {p.pending ? (
+                      <Pill tone="gray">초대 보냄 · {p.pending.invitedDaysAgo}일 전</Pill>
+                    ) : (
+                      <>
+                        {retake ? <Pill tone="warn">재촬영 대기</Pill> : p.newRecords > 0 && <Pill>새 기록 {p.newRecords}</Pill>}
+                        {next && <Pill tone="gray">{slash(next.date)} 진료</Pill>}
+                      </>
+                    )}
+                  </span>
+                </span>
+                <Chevron20Icon size={20} className="text-p-light" />
+              </button>
+            </li>
+          ))}
+          {shown.length === 0 && <li className="py-10 text-center text-sm text-p-gray">찾는 환자가 없어요</li>}
+        </ul>
       </div>
-
-      <BottomNav items={doctorNavItems} />
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-gray-400">{label}</p>
-      <p className="text-sm font-semibold text-gray-900">{value}</p>
+      <DoctorNav />
     </div>
   );
 }

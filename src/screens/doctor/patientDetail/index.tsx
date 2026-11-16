@@ -1,63 +1,70 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { mockPatients, mockAppointments } from "../../../data/mockDoctor";
-import { getPeerNorm } from "../../../data/mockNorms";
+import { mockPatients, nextAppointment, lastVisit, isoDay, type MockPatient } from "../../../data/mockDoctor";
+import { PEER_BAND } from "../../../data/mockNorms";
 import { useNotesStore } from "../../../store/notes";
+import { Pill } from "../../../components/ParentNav";
+import TaskIcon from "../../../components/TaskIcon";
+import { ArrowDownIcon, ArrowUpIcon, BackIcon, MemoIcon, PencilIcon, PlayFillIcon } from "../../../components/icons";
+import { TASK_LABEL, TASK_ORDER, unitOf } from "../../../data/tasks";
 import type { TaskType } from "../../../types/analysis";
+import MemoSheet from "./MemoSheet";
+import { DAY, fromIso, genderLong, SCENE_IMAGES, WEEKDAY } from "../format";
 
-const TASK_LABEL: Record<TaskType, string> = {
-  name_response: "호명반응",
-  imitation:     "동작 모방",
-  ball_play:     "공 주고받기",
+// Figma 의사 버전 "진료요약"(요약 탭), "iPhone 16 - 4"(그래프 탭), "진료메모"(시트)
+type Tab = "summary" | "records" | "graph" | "memo";
+const TABS: { key: Tab; label: string }[] = [
+  { key: "summary", label: "요약" },
+  { key: "records", label: "기록" },
+  { key: "graph", label: "그래프" },
+  { key: "memo", label: "메모" },
+];
+
+const md = (ts: number) => {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 };
-
-const MS_PER_MONTH = (365.25 / 12) * 24 * 60 * 60 * 1000;
-
-type Tab = "records" | "graphs" | "appointments" | "memo";
 
 export default function PatientDetailScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("records");
+  const [tab, setTab] = useState<Tab>("summary");
+  const [memoOpen, setMemoOpen] = useState(false);
 
   const patient = mockPatients.find((p) => p.id === id);
   if (!patient) return null;
-
-  const TAB_LABELS: { key: Tab; label: string }[] = [
-    { key: "records",      label: "기록"  },
-    { key: "graphs",       label: "그래프" },
-    { key: "appointments", label: "예약"  },
-    { key: "memo",         label: "메모"  },
-  ];
+  const next = nextAppointment(patient.id);
+  const today = isoDay(0);
 
   return (
     <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
       {/* 헤더 */}
-      <div className="px-4 pt-14 pb-0 border-b border-gray-100">
-        <div className="flex items-center gap-3 mb-3">
-          <button onClick={() => navigate(-1)} className="p-1 -ml-1 text-gray-500">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M14 5l-6 6 6 6" />
-            </svg>
+      <div className="sticky top-0 z-10 bg-white">
+        <div className="flex items-start gap-3 px-4 pt-[60px]">
+          <button type="button" onClick={() => navigate(-1)} aria-label="뒤로 가기" className="mt-0.5 text-p-title">
+            <BackIcon size={24} />
           </button>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">{patient.name}</h1>
-            <p className="text-xs text-gray-400">
-              {patient.ageMonths}개월 · {patient.gender === "male" ? "남아" : "여아"} · {patient.parentName} 보호자
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-p-title">{patient.name}</h1>
+              {next && (
+                <span className="flex h-7 items-center rounded-full bg-brand-chip px-2.5 text-xs font-bold text-[#37B4DE]">
+                  {next.date === today ? "오늘" : `${Number(next.date.slice(5, 7))}/${Number(next.date.slice(8))}`} {next.time} 진료
+                </span>
+              )}
+            </div>
+            <p className="mt-1.5 text-[13px] text-p-gray">
+              {patient.ageMonths}개월 · {genderLong(patient.gender)} · 보호자 {patient.parentName}
             </p>
           </div>
         </div>
-
-        <div className="flex">
-          {TAB_LABELS.map(({ key, label }) => (
+        <div className="mt-5 flex border-b border-p-line">
+          {TABS.map(({ key, label }) => (
             <button
               key={key}
+              type="button"
               onClick={() => setTab(key)}
-              className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                tab === key
-                  ? "border-gray-900 text-gray-900"
-                  : "border-transparent text-gray-400"
-              }`}
+              className={`flex-1 pb-3 text-[15px] ${tab === key ? "border-b-2 border-brand font-bold text-p-title" : "text-p-light"}`}
             >
               {label}
             </button>
@@ -65,330 +72,311 @@ export default function PatientDetailScreen() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {tab === "records"      && <RecordsTab      patient={patient} />}
-        {tab === "graphs"       && <GraphsTab        patient={patient} />}
-        {tab === "appointments" && <AppointmentsTab  patient={patient} />}
-        {tab === "memo"         && <MemoTab          patientId={patient.id} patientName={patient.name} />}
+      <div className="flex-1 px-5 pb-6">
+        {tab === "summary" && <SummaryTab patient={patient} />}
+        {tab === "records" && <RecordsTab patient={patient} />}
+        {tab === "graph" && <GraphTab patient={patient} />}
+        {tab === "memo" && <MemoTab patientId={patient.id} />}
       </div>
+
+      {(tab === "summary" || tab === "memo") && (
+        <div className="sticky bottom-0 bg-white px-5 pt-3 pb-8">
+          <button
+            type="button"
+            onClick={() => setMemoOpen(true)}
+            className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-brand text-base font-bold text-white"
+          >
+            <PencilIcon size={20} />
+            진료 메모 쓰기
+          </button>
+        </div>
+      )}
+
+      {memoOpen && <MemoSheet patientId={patient.id} onClose={() => setMemoOpen(false)} />}
     </div>
   );
 }
 
-/* ── 기록 탭 ───────────────────────────────────────────────── */
+/* ── 요약 탭 ── */
 
-function RecordsTab({ patient }: { patient: typeof mockPatients[0] }) {
-  const groups = patient.records
-    .slice()
-    .sort((a, b) => b.recordedAt - a.recordedAt)
-    .reduce<Record<string, typeof patient.records>>((acc, r) => {
-      const key = new Date(r.recordedAt).toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
-      (acc[key] ??= []).push(r);
-      return acc;
-    }, {});
+function SummaryTab({ patient }: { patient: MockPatient }) {
+  const navigate = useNavigate();
+  const visit = lastVisit(patient.id);
+  const since = visit ? fromIso(visit.date) + DAY : 0;
+  const sorted = [...patient.records].sort((a, b) => a.recordedAt - b.recordedAt);
+  const after = sorted.filter((r) => r.recordedAt >= since);
+
+  const rows = TASK_ORDER.map((task) => {
+    const ok = sorted.filter((r) => r.taskType === task && r.result.status === "success" && r.result.metric);
+    const before = ok.filter((r) => r.recordedAt < since).pop() ?? ok[0];
+    const latest = ok[ok.length - 1];
+    return { task, before, latest };
+  }).filter((r) => r.before && r.latest && r.before !== r.latest);
+
+  const scenes = [...sorted].reverse().filter((r) => r.result.status === "success").slice(0, 2);
 
   return (
-    <div className="px-5 py-4 space-y-5">
-      {Object.entries(groups).map(([date, records]) => (
-        <div key={date}>
-          <p className="text-xs font-medium text-gray-400 mb-2">{date}</p>
-          <div className="space-y-0">
-            {records.map((r) => (
-              <div key={r.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                    {TASK_LABEL[r.taskType]}
+    <>
+      <div className="mt-6 flex items-baseline justify-between">
+        <h2 className="text-base font-bold text-p-title">{visit ? "지난 진료 이후 변화" : "기록 변화"}</h2>
+        {visit && (
+          <span className="text-[13px] text-p-gray">
+            {Number(visit.date.slice(5, 7))}/{Number(visit.date.slice(8))} 이후 기록 {after.length}회
+          </span>
+        )}
+      </div>
+      <ul className="mt-2 divide-y divide-p-line">
+        {rows.length === 0 && <li className="py-4 text-sm text-p-gray">비교할 기록이 아직 없어요</li>}
+        {rows.map(({ task, before, latest }) => {
+          const a = before!.result.metric!;
+          const b = latest!.result.metric!;
+          const up = b.value > a.value;
+          const same = b.value === a.value;
+          return (
+            <li key={task} className="flex h-[70px] items-center">
+              <Pill className="h-7 w-[90px] justify-center text-[13px]">{TASK_LABEL[task]}</Pill>
+              <span className="ml-2.5 flex-1 text-[13px] tabular-nums">
+                <span className="text-p-gray">{a.value}{unitOf(a.unit)} → </span>
+                <b className="text-p-title">{b.value}{unitOf(b.unit)}</b>
+              </span>
+              {!same && (
+                <span className={`flex items-center gap-0.5 text-[13px] font-bold ${up ? "text-brand" : "text-p-light"}`}>
+                  {up ? <ArrowUpIcon size={16} /> : <ArrowDownIcon size={16} />}
+                  {up ? "늘었어요" : "줄었어요"}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {patient.question && (
+        <>
+          <div className="mt-7 flex items-baseline justify-between">
+            <h2 className="text-base font-bold text-p-title">보호자가 남긴 질문</h2>
+            <span className="text-[13px] text-p-gray">
+              {Number(patient.question.date.slice(5, 7))}월 {Number(patient.question.date.slice(8))}일
+            </span>
+          </div>
+          <div className="mt-3 flex gap-3 rounded-xl bg-p-card px-4 py-4">
+            <MemoIcon size={20} className="mt-0.5 flex-shrink-0 text-p-gray" />
+            <p className="text-[15px] leading-[21px] text-p-body whitespace-pre-line">{patient.question.text}</p>
+          </div>
+        </>
+      )}
+
+      {scenes.length > 0 && (
+        <>
+          <div className="mt-7 flex items-baseline justify-between">
+            <h2 className="text-base font-bold text-p-title">확인할 장면</h2>
+            <span className="text-[13px] text-p-gray">AI가 고른 장면</span>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {scenes.map((r, i) => (
+              <button key={r.id} type="button" onClick={() => navigate(`/doctor/patients/${patient.id}/scene/${r.id}`)} className="text-left">
+                <span className="relative block h-[91px] overflow-hidden rounded-xl">
+                  <img src={SCENE_IMAGES[i % SCENE_IMAGES.length]} alt="" className="h-full w-full object-cover" />
+                  <span className="absolute left-1/2 top-1/2 flex h-[31px] w-[31px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-brand">
+                    <PlayFillIcon size={12} />
                   </span>
-                  <span className="text-sm text-gray-800">
-                    {r.result.status === "success" ? r.result.metric?.label : "재촬영 필요"}
+                  <span className="absolute bottom-1.5 right-1.5 rounded bg-black/45 px-1.5 text-[11px] font-bold leading-5 text-white">
+                    0:{String(24 - i * 6).padStart(2, "0")}
                   </span>
-                </div>
-                {r.result.status === "success" && r.result.metric ? (
-                  <span className="text-sm font-semibold text-gray-900">
-                    {r.result.metric.value}{r.result.metric.unit === "seconds" ? "초" : "회"}
-                  </span>
-                ) : (
-                  <span className="text-xs text-orange-500">재촬영</span>
-                )}
-              </div>
+                </span>
+                <span className="mt-2 block text-[13px] text-p-body">
+                  {TASK_LABEL[r.taskType]} · {md(r.recordedAt)}
+                </span>
+              </button>
             ))}
           </div>
-        </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/* ── 기록 탭 ── */
+
+function RecordsTab({ patient }: { patient: MockPatient }) {
+  const navigate = useNavigate();
+  const sorted = [...patient.records].sort((a, b) => b.recordedAt - a.recordedAt);
+  const groups: { label: string; items: typeof sorted }[] = [];
+  for (const r of sorted) {
+    const d = new Date(r.recordedAt);
+    const label = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY[d.getDay()]})`;
+    const g = groups.find((x) => x.label === label);
+    if (g) g.items.push(r);
+    else groups.push({ label, items: [r] });
+  }
+  if (groups.length === 0) return <p className="py-16 text-center text-sm text-p-gray">아직 기록이 없어요</p>;
+  return (
+    <>
+      {groups.map((g) => (
+        <section key={g.label} className="mt-5">
+          <h2 className="text-[13px] font-bold text-p-gray">{g.label}</h2>
+          <ul className="mt-3 space-y-4">
+            {g.items.map((r) => {
+              const ok = r.result.status === "success";
+              return (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    disabled={!ok}
+                    onClick={() => navigate(`/doctor/patients/${patient.id}/scene/${r.id}`)}
+                    className="flex w-full items-center text-left"
+                  >
+                    <span className={`flex h-[38px] w-[38px] items-center justify-center rounded-[10px] ${ok ? "bg-brand-soft text-brand-icon" : "bg-p-card text-p-light"}`}>
+                      <TaskIcon task={r.taskType} size={19} />
+                    </span>
+                    <span className="ml-3 flex-1 text-[15px] font-bold text-p-title">{TASK_LABEL[r.taskType]}</span>
+                    {ok && r.result.metric ? (
+                      <span className="text-[17px] font-bold text-p-title tabular-nums">
+                        {r.result.metric.value}{unitOf(r.result.metric.unit)}
+                      </span>
+                    ) : (
+                      <Pill tone="warn" className="h-[30px] px-3 text-[13px]">재촬영 필요</Pill>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       ))}
-    </div>
+    </>
   );
 }
 
-/* ── 그래프 탭 ─────────────────────────────────────────────── */
+/* ── 그래프 탭 ── */
 
-function median(arr: number[]): number {
-  const s = [...arr].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 !== 0 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
+const RANGES = [
+  { key: "1m", label: "1개월", days: 31 },
+  { key: "3m", label: "3개월", days: 92 },
+  { key: "all", label: "전체", days: Infinity },
+] as const;
+const CATEGORY: Record<TaskType, string> = { name_response: "사회성", imitation: "모방", ball_play: "상호작용" };
 
-function GraphsTab({ patient }: { patient: typeof mockPatients[0] }) {
-  const tasks: TaskType[] = ["name_response", "imitation", "ball_play"];
-
-  return (
-    <div className="px-5 py-5 space-y-7">
-      {tasks.map((taskType) => {
-        const data = patient.records
-          .filter((r) => r.taskType === taskType && r.result.status === "success" && r.result.metric)
-          .sort((a, b) => a.recordedAt - b.recordedAt);
-
-        if (data.length === 0) return null;
-
-        const unit = data[0].result.metric!.unit;
-        const unitLabel = unit === "seconds" ? "초" : "회";
-        const norm = getPeerNorm(taskType, Math.floor(
-          (data[data.length - 1].recordedAt - new Date(patient.birthDate).getTime()) / MS_PER_MONTH
-        ));
-
-        // 최근 3회 중앙값 시계열: 각 시점 i에서 max(0, i-2)~i 범위의 중앙값
-        const rollingMedians = data.map((_, i) => {
-          const window = data.slice(Math.max(0, i - 2), i + 1).map((r) => r.result.metric!.value);
-          return median(window);
-        });
-
-        return (
-          <div key={taskType}>
-            <div className="flex items-baseline justify-between mb-2">
-              <div>
-                <span className="text-xs text-gray-400">{TASK_LABEL[taskType]}</span>
-                <p className="text-sm font-medium text-gray-800">{data[0].result.metric!.label}</p>
-              </div>
-              {norm !== null && (
-                <p className="text-xs text-gray-400">
-                  참고 <strong className="text-gray-600">{norm}{unitLabel}</strong>
-                </p>
-              )}
-            </div>
-
-            {data.length < 3 ? (
-              <div className="bg-gray-50 rounded-2xl px-4 py-5 text-center">
-                <p className="text-xs text-gray-400">
-                  기록이 3회 이상 쌓이면 변화를 보여드립니다 (현재 {data.length}회)
-                </p>
-              </div>
-            ) : (
-              <>
-                <LineChart values={rollingMedians} />
-                <div className="flex justify-between mt-2 text-xs text-gray-500">
-                  <span>최근 3회 중앙값 <strong className="text-gray-900">{rollingMedians[rollingMedians.length - 1].toFixed(1)}{unitLabel}</strong></span>
-                  {norm !== null && (
-                    <span>TD 참고값 <strong className="text-gray-600">{norm}{unitLabel}</strong></span>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function LineChart({ values }: { values: number[] }) {
-  const W = 300;
-  const H = 80;
-  const pad = 12;
-
-  if (values.length < 2) return null;
-
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-
-  function toCoord(v: number, i: number, total: number) {
-    return {
-      x: pad + (i / (total - 1)) * (W - pad * 2),
-      y: H - pad - ((v - min) / range) * (H - pad * 2),
-    };
-  }
-
-  const pts = values.map((v, i) => toCoord(v, i, values.length));
-  const toPath = (ps: { x: number; y: number }[]) =>
-    ps.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+function GraphTab({ patient }: { patient: MockPatient }) {
+  const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("1m");
+  const [now] = useState(() => Date.now());
+  const days = RANGES.find((r) => r.key === range)!.days;
 
   return (
-    <div className="bg-gray-50 rounded-2xl p-3">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-        <path d={toPath(pts)} stroke="#111" strokeWidth={2} fill="none"
-          strokeLinecap="round" strokeLinejoin="round" />
-        {pts.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={3.5} fill="#111" />
+    <>
+      <div className="mt-4 flex rounded-xl bg-p-card p-1">
+        {RANGES.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => setRange(r.key)}
+            className={`h-9 flex-1 rounded-[10px] text-sm ${range === r.key ? "bg-white font-bold text-p-title shadow-sm" : "text-p-gray"}`}
+          >
+            {r.label}
+          </button>
         ))}
-      </svg>
-    </div>
+      </div>
+      <div className="mt-4 flex items-center gap-4 text-xs text-p-gray">
+        <span className="flex items-center gap-1.5"><span className="h-0.5 w-3 bg-brand-icon" />{patient.name}</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-3 bg-brand-soft" />또래 범위</span>
+      </div>
+
+      <div className="mt-3 space-y-3">
+        {TASK_ORDER.map((task) => {
+          const data = patient.records
+            .filter((r) => r.taskType === task && r.result.status === "success" && r.result.metric && now - r.recordedAt <= days * DAY)
+            .sort((a, b) => a.recordedAt - b.recordedAt);
+          if (data.length === 0) return null;
+          const unit = data[0].result.metric!.unit;
+          const values = data.map((r) => r.result.metric!.value);
+          const band = PEER_BAND[task];
+          const last = values[values.length - 1];
+          const prev = values[values.length - 2];
+          const badge = band
+            ? last > band.hi ? { text: "범위보다 길어요", warn: false } : last < band.lo ? { text: "범위보다 짧아요", warn: false } : { text: "범위 안이에요", warn: false }
+            : prev !== undefined && prev !== last
+              ? { text: `최근 2회 ${last > prev ? "늘었어요" : "줄었어요"}`, warn: true }
+              : null;
+          return (
+            <div key={task} className="rounded-2xl border border-p-line px-4 pt-4 pb-3.5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-p-gray">{CATEGORY[task]}</p>
+                  <p className="mt-1 text-base font-bold text-p-title">{TASK_LABEL[task]}</p>
+                </div>
+                {badge && <Pill tone={badge.warn ? "warn" : "blue"}>{badge.text}</Pill>}
+              </div>
+              <Chart values={values} labels={data.map((r) => md(r.recordedAt))} unit={unitOf(unit)} band={band} />
+              <div className="mt-2 flex justify-between border-t border-p-line pt-3 text-[13px]">
+                <span className="text-p-gray">최근 <b className="text-p-title">{last}{unitOf(unit)}</b></span>
+                <span className="text-p-gray">{band ? `또래 범위 ${band.lo}~${band.hi}${unitOf(unit)} (${band.note})` : "또래 자료 없음"}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
-/* ── 예약 탭 ───────────────────────────────────────────────── */
-
-function AppointmentsTab({ patient }: { patient: typeof mockPatients[0] }) {
-  const today = new Date().toISOString().split("T")[0];
-  const all = mockAppointments
-    .filter((a) => a.patientId === patient.id)
-    .sort((a, b) => b.date.localeCompare(a.date));
-
-  const upcoming = all.filter((a) => a.date >= today);
-  const past     = all.filter((a) => a.date <  today);
-
-  function fmt(date: string, time: string) {
-    const d = new Date(date);
-    const days = ["일", "월", "화", "수", "목", "금", "토"];
-    const [h, m] = time.split(":").map(Number);
-    const ampm = h < 12 ? "오전" : "오후";
-    const hour = h <= 12 ? h : h - 12;
-    return `${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]} · ${ampm} ${hour}:${String(m).padStart(2, "0")}`;
-  }
-
+function Chart({ values, labels, unit, band }: { values: number[]; labels: string[]; unit: string; band?: { lo: number; hi: number } }) {
+  const W = 320, H = 150, L = 22, R = 10, T = 10, B = 26;
+  const top = Math.ceil(Math.max(...values, band?.hi ?? 0) / 2) * 2 || 2;
+  const ticks = [0, 1, 2, 3, 4, 5, 6].map((i) => (top / 6) * i).filter((_, i) => i > 0 && (top <= 12 ? true : i % 2 === 0));
+  const x = (i: number) => (values.length === 1 ? (L + W - R) / 2 : L + 6 + (i / (values.length - 1)) * (W - L - R - 12));
+  const y = (v: number) => T + (1 - v / top) * (H - T - B);
+  const d = values.map((v, i) => `${i ? "L" : "M"}${x(i)} ${y(v)}`).join(" ");
   return (
-    <div className="px-5 py-5 space-y-5">
-      {upcoming.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-gray-400 mb-3">예정된 예약</p>
-          {upcoming.map((a) => (
-            <div key={a.id} className="flex items-center gap-3 py-3 border-b border-gray-50">
-              <div className="w-2 h-2 rounded-full bg-gray-900 flex-shrink-0" />
-              <span className="text-sm text-gray-800">{fmt(a.date, a.time)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {past.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-gray-400 mb-3">지난 예약</p>
-          {past.map((a) => (
-            <div key={a.id} className="flex items-center gap-3 py-3 border-b border-gray-50">
-              <div className="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0" />
-              <span className="text-sm text-gray-400">{fmt(a.date, a.time)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      <button className="w-full py-3.5 rounded-2xl border border-gray-200 text-sm font-medium text-gray-700">
-        + 예약 추가하기
-      </button>
-    </div>
+    <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" style={{ height: H }}>
+      {band && <rect x={L} y={y(Math.min(band.hi, top))} width={W - L - R} height={y(band.lo) - y(Math.min(band.hi, top))} fill="#E6F8FF" />}
+      {ticks.map((t) => (
+        <g key={t}>
+          <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#E3E5E8" strokeWidth={1} />
+          <text x={L - 6} y={y(t) + 3} fontSize={9} fill="#A8A8A8" textAnchor="end">{Math.round(t * 10) / 10}</text>
+        </g>
+      ))}
+      <text x={L - 6} y={H - B + 12} fontSize={9} fill="#A8A8A8" textAnchor="end">({unit})</text>
+      <path d={d} stroke="#009ED3" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {values.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r={4} fill="#009ED3" />)}
+      {labels.map((l, i) => (
+        <text key={i} x={x(i)} y={H - 6} fontSize={9} fill="#767676" textAnchor="middle">{l}</text>
+      ))}
+    </svg>
   );
 }
 
-/* ── 메모 탭 ───────────────────────────────────────────────── */
+/* ── 메모 탭 ── */
 
-function MemoTab({ patientId, patientName }: { patientId: string; patientName: string }) {
-  const notes    = useNotesStore((s) => s.notes.filter((n) => n.patientId === patientId));
-  const addNote  = useNotesStore((s) => s.addNote);
+function MemoTab({ patientId }: { patientId: string }) {
+  const allNotes = useNotesStore((s) => s.notes);
   const deleteNote = useNotesStore((s) => s.deleteNote);
   const toggleShare = useNotesStore((s) => s.toggleShare);
+  const notes = allNotes.filter((n) => n.patientId === patientId).sort((a, b) => b.date.localeCompare(a.date));
 
-  const [isAdding, setIsAdding] = useState(false);
-  const [newDate, setNewDate] = useState(new Date().toISOString().split("T")[0]);
-  const [newText, setNewText] = useState("");
-
-  const sorted = [...notes].sort((a, b) => b.date.localeCompare(a.date));
-
-  function handleSave() {
-    if (!newText.trim()) return;
-    addNote({ patientId, date: newDate, text: newText.trim(), isShared: false });
-    setNewText("");
-    setNewDate(new Date().toISOString().split("T")[0]);
-    setIsAdding(false);
-  }
-
-  function fmtDate(iso: string) {
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}월 ${d.getDate()}일`;
-  }
-
+  if (notes.length === 0) return <p className="py-16 text-center text-sm text-p-gray">아직 메모가 없어요</p>;
   return (
-    <div className="px-5 py-5 space-y-4">
-      {/* 추가 폼 */}
-      {isAdding ? (
-        <div className="border border-gray-200 rounded-2xl p-4 space-y-3">
-          <input
-            type="date"
-            value={newDate}
-            max={new Date().toISOString().split("T")[0]}
-            onChange={(e) => setNewDate(e.target.value)}
-            className="text-sm text-gray-700 bg-transparent outline-none"
-          />
-          <textarea
-            autoFocus
-            value={newText}
-            onChange={(e) => setNewText(e.target.value)}
-            placeholder={`${patientName}에 대한 진료 메모를 입력하세요`}
-            rows={4}
-            className="w-full text-sm text-gray-800 placeholder-gray-400 bg-transparent outline-none resize-none"
-          />
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={() => { setIsAdding(false); setNewText(""); }}
-              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-500"
-            >
-              취소
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!newText.trim()}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition-colors ${
-                newText.trim() ? "bg-gray-900" : "bg-gray-300"
-              }`}
-            >
-              저장
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={() => setIsAdding(true)}
-          className="w-full py-3 rounded-2xl border border-dashed border-gray-300 text-sm text-gray-500 flex items-center justify-center gap-1.5"
-        >
-          <span className="text-lg leading-none">+</span> 메모 추가
-        </button>
-      )}
-
-      {/* 메모 목록 */}
-      {sorted.length === 0 && !isAdding ? (
-        <p className="text-sm text-gray-400 text-center py-10">아직 메모가 없어요</p>
-      ) : (
-        sorted.map((note) => (
-          <div key={note.id} className={`rounded-2xl p-4 border ${note.isShared ? "border-blue-100 bg-blue-50/40" : "border-gray-100"}`}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-400">{fmtDate(note.date)}</span>
+    <ul className="mt-5 space-y-3">
+      {notes.map((n) => {
+        const [, m, d] = n.date.split("-").map(Number);
+        return (
+          <li key={n.id} className="rounded-2xl border border-p-line px-4 py-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-bold text-p-gray">{m}월 {d}일</span>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => toggleShare(note.id)}
-                  className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                    note.isShared
-                      ? "border-blue-300 text-blue-600 bg-blue-50"
-                      : "border-gray-200 text-gray-400"
-                  }`}
-                >
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <circle cx="8" cy="2" r="1.2" />
-                    <circle cx="2" cy="5" r="1.2" />
-                    <circle cx="8" cy="8" r="1.2" />
-                    <line x1="3.1" y1="4.4" x2="6.9" y2="2.6" />
-                    <line x1="3.1" y1="5.6" x2="6.9" y2="7.4" />
-                  </svg>
-                  {note.isShared ? "부모 공개" : "비공개"}
+                <button type="button" onClick={() => toggleShare(n.id)}>
+                  <Pill tone={n.isShared ? "blue" : "gray"}>{n.isShared ? "보호자 공개" : "나만 보기"}</Pill>
                 </button>
-                <button
-                  onClick={() => deleteNote(note.id)}
-                  className="text-gray-300 hover:text-gray-500 transition-colors"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M4 4l8 8M12 4l-8 8" />
-                  </svg>
-                </button>
+                <button type="button" onClick={() => deleteNote(n.id)} aria-label="메모 지우기" className="px-1 text-lg leading-none text-p-light">×</button>
               </div>
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed">{note.text}</p>
-          </div>
-        ))
-      )}
-    </div>
+            <p className="mt-2.5 text-[15px] leading-6 text-p-body whitespace-pre-line">{n.text}</p>
+            {n.nextTasks && n.nextTasks.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {n.nextTasks.map((t) => <Pill key={t} tone="gray">{t}</Pill>)}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

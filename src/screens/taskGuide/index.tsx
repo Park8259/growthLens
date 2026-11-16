@@ -4,7 +4,7 @@ import { Pill } from "../../components/ParentNav";
 import {
   BackIcon, BallIcon, ImagePlaceholderIcon, PhoneIcon, PinIcon, RulerIcon, SunIcon, VideoIcon,
 } from "../../components/icons";
-import { TASK_GUIDE, TASK_LABEL, NEXT_VISIT } from "../../data/tasks";
+import { TASK_GUIDE, TASK_LABEL, nextVisit } from "../../data/tasks";
 import type { TaskType } from "../../types/analysis";
 
 const CHECKLIST = [
@@ -23,6 +23,7 @@ export default function TaskGuideScreen() {
   if (!taskType || !(taskType in TASK_LABEL)) return null;
   const task = taskType as TaskType;
   const count = records.filter((r) => r.taskType === task).length;
+  const visit = nextVisit();
 
   return (
     <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
@@ -43,9 +44,11 @@ export default function TaskGuideScreen() {
 
         <div className="mt-3.5 flex gap-2 px-2.5">
           {count > 0 && <Pill>새 기록 {count}</Pill>}
-          <Pill tone="gray">
-            {NEXT_VISIT.month}/{NEXT_VISIT.day} 진료
-          </Pill>
+          {visit.has && (
+            <Pill tone="gray">
+              {visit.month}/{visit.day} 진료
+            </Pill>
+          )}
         </div>
 
         <h2 className="mt-3 px-2.5 text-[26px] leading-[31px] font-bold text-p-title">{TASK_LABEL[task]}</h2>
