@@ -1,119 +1,122 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRecordsStore } from "../../store/records";
-import { useNotesStore } from "../../store/notes";
-import BottomNav from "../../components/BottomNav";
-import NavBar from "../../components/NavBar";
+import ParentNav from "../../components/ParentNav";
+import { TASK_LABEL, unitOf } from "../../data/tasks";
+import TaskIcon from "../../components/TaskIcon";
 import type { TaskType } from "../../types/analysis";
 
-const TASK_LABEL: Record<TaskType, string> = {
-  name_response: "호명반응",
-  imitation: "동작 모방",
-  ball_play: "공 주고받기",
-};
+// Figma 부모 버전 "기록"
+const FILTERS: (TaskType | "all")[] = ["all", "name_response", "imitation", "ball_play"];
+const WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"];
 
-function fmtDate(ts: number): string {
-  return new Date(ts).toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
+function dayKey(ts: number) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
-
-function fmtMetric(result: { status: string; metric?: { value: number; unit: string } }): string {
-  if (result.status === "retry_needed") return "재촬영 필요";
-  if (!result.metric) return "-";
-  const { value, unit } = result.metric;
-  return `${value}${unit === "seconds" ? "초" : "회"}`;
+function dayLabel(ts: number, now: Date) {
+  const d = new Date(ts);
+  const base = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAY[d.getDay()]})`;
+  return dayKey(ts) === dayKey(now.getTime()) ? `${base} · 오늘` : base;
 }
-
-const NAV_ITEMS = [
-  { label: "과제", path: "/tasks", icon: (a: boolean) => <TaskIcon active={a} /> },
-  { label: "기록", path: "/timeline", icon: (a: boolean) => <TimelineIcon active={a} /> },
-  { label: "변화", path: "/charts", icon: (a: boolean) => <ChartIcon active={a} /> },
-];
+function timeLabel(ts: number) {
+  const d = new Date(ts);
+  const h = d.getHours();
+  return `${h < 12 ? "오전" : "오후"} ${h % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
 export default function TimelineScreen() {
   const navigate = useNavigate();
   const records = useRecordsStore((s) => s.records);
-  const sharedNotes = useNotesStore((s) =>
-    s.notes.filter((n) => n.isShared).sort((a, b) => b.date.localeCompare(a.date))
-  );
+  const [filter, setFilter] = useState<TaskType | "all">("all");
+  const [now] = useState(() => new Date());
 
-  const sorted = [...records].sort((a, b) => b.recordedAt - a.recordedAt);
+  const shown = records
+    .filter((r) => filter === "all" || r.taskType === filter)
+    .sort((a, b) => b.recordedAt - a.recordedAt);
 
-  const groups: Record<string, typeof sorted> = {};
-  for (const r of sorted) {
-    const key = fmtDate(r.recordedAt);
-    (groups[key] ??= []).push(r);
+  const groups: { key: string; label: string; items: typeof shown }[] = [];
+  for (const r of shown) {
+    const key = dayKey(r.recordedAt);
+    const g = groups.find((x) => x.key === key);
+    if (g) g.items.push(r);
+    else groups.push({ key, label: dayLabel(r.recordedAt, now), items: [r] });
   }
 
   return (
     <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
-      <NavBar title="기록" back={false} />
+      <div className="flex-1 px-5 pt-16 pb-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-p-title">기록</h1>
+          <span className="text-sm text-p-gray">총 {records.length}회</span>
+        </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4">
-        {/* 선생님 피드백 — isShared 메모만 표시 */}
-        {sharedNotes.length > 0 && (
-          <div className="mb-6">
-            <p className="text-xs font-medium text-gray-400 mb-2">선생님 피드백</p>
-            <div className="space-y-2">
-              {sharedNotes.map((note) => (
-                <div key={note.id} className="bg-blue-50 rounded-2xl px-4 py-3">
-                  <p className="text-xs text-blue-400 mb-1">{note.date.replace(/-/g, ".")} · 담당 선생님</p>
-                  <p className="text-sm text-gray-800 leading-relaxed">{note.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {sorted.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <p className="text-gray-400 text-sm">아직 기록이 없어요</p>
+        <div className="mt-4 flex gap-2 overflow-x-auto no-scrollbar">
+          {FILTERS.map((f) => (
             <button
-              onClick={() => navigate("/tasks")}
-              className="px-6 py-3 rounded-2xl bg-gray-900 text-white text-sm font-medium"
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={`h-[37px] flex-shrink-0 rounded-xl px-3.5 text-sm ${
+                filter === f ? "bg-brand font-bold text-white" : "border border-p-line bg-white text-p-body"
+              }`}
             >
+              {f === "all" ? "전체" : TASK_LABEL[f]}
+            </button>
+          ))}
+        </div>
+
+        {groups.length === 0 ? (
+          <div className="flex flex-col items-center gap-4 py-24">
+            <p className="text-sm text-p-gray">아직 기록이 없어요</p>
+            <button type="button" onClick={() => navigate("/tasks")} className="h-[46px] rounded-[14px] bg-brand px-6 text-sm font-bold text-white">
               과제 하러 가기
             </button>
           </div>
         ) : (
-          Object.entries(groups).map(([date, recs]) => (
-            <div key={date} className="mb-6">
-              <p className="text-xs font-medium text-gray-400 mb-2">{date}</p>
-              <div className="space-y-0">
-                {recs.map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => navigate(`/replay/${r.id}`)}
-                    className="w-full flex items-center justify-between py-3 border-b border-gray-50 last:border-0 text-left"
-                  >
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                      {TASK_LABEL[r.taskType]}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm font-medium ${r.result.status === "retry_needed" ? "text-orange-500" : "text-gray-900"}`}>
-                        {fmtMetric(r.result)}
-                      </span>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round">
-                        <path d="M5 3l4 4-4 4" />
-                      </svg>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+          groups.map((g) => (
+            <section key={g.key} className="mt-[18px]">
+              <h2 className="text-[13px] font-bold text-p-gray">{g.label}</h2>
+              <ul className="mt-[21px] space-y-[27px]">
+                {g.items.map((r) => {
+                  const ok = r.result.status === "success";
+                  // 같은 과제를 이 기록 뒤에 다시 찍었으면 재촬영은 끝난 것
+                  const retaken = !ok && records.some((x) => x.taskType === r.taskType && x.recordedAt > r.recordedAt);
+                  return (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        // 재촬영 필요한 기록은 그 과제를 바로 다시 시작. 이미 다시 찍었으면 누를 수 없음
+                        disabled={retaken}
+                        onClick={() => navigate(ok ? `/replay/${r.id}` : `/task-guide/${r.taskType}`)}
+                        className="flex w-full items-center px-1 text-left"
+                      >
+                        <span className={`flex h-[38px] w-[38px] items-center justify-center rounded-[10px] ${ok ? "bg-brand-soft text-brand-icon" : "bg-p-card text-[#9C9C9C]"}`}>
+                          <TaskIcon task={r.taskType} size={19} />
+                        </span>
+                        <span className="ml-3 flex-1">
+                          <span className="block text-[15px] font-bold text-p-title">{TASK_LABEL[r.taskType]}</span>
+                          <span className="mt-1 block text-xs text-p-light">{timeLabel(r.recordedAt)}</span>
+                        </span>
+                        {ok && r.result.metric ? (
+                          <span className="text-[17px] font-bold text-p-title tabular-nums">
+                            {r.result.metric.value}{unitOf(r.result.metric.unit)}
+                          </span>
+                        ) : retaken ? (
+                          <span className="flex h-[34px] items-center rounded-full bg-p-card px-3.5 text-sm font-bold text-p-light">다시 찍었어요</span>
+                        ) : (
+                          <span className="flex h-[34px] items-center rounded-full bg-warn-bg px-3.5 text-sm font-bold text-warn-text">재촬영 필요</span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           ))
         )}
       </div>
-
-      <BottomNav items={NAV_ITEMS} />
+      <ParentNav />
     </div>
   );
-}
-
-function TaskIcon({ active }: { active: boolean }) {
-  return <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke={active ? "#111" : "#aaa"} strokeWidth="1.5" strokeLinecap="round"><rect x="4" y="4" width="14" height="14" rx="2"/><path d="M8 11h6M8 14h4"/></svg>;
-}
-function TimelineIcon({ active }: { active: boolean }) {
-  return <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke={active ? "#111" : "#aaa"} strokeWidth="1.5" strokeLinecap="round"><path d="M4 6h14M4 11h14M4 16h8"/></svg>;
-}
-function ChartIcon({ active }: { active: boolean }) {
-  return <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke={active ? "#111" : "#aaa"} strokeWidth="1.5" strokeLinecap="round"><path d="M4 17 L8 11 L12 13 L18 6"/></svg>;
 }

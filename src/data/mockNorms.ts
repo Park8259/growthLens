@@ -15,6 +15,14 @@ const MIN_NORM_MONTHS: Partial<Record<TaskType, number>> = {
   name_response: 18,
 };
 
+/**
+ * 그래프 아래에 글자로만 보여주는 참고값 (docs/screens.md 표현 규칙: 띠·비교 문구 없이 출처와 함께).
+ * 논문 값이 있는 과제만 있어요.
+ */
+export const PEER_REFERENCE: Partial<Record<TaskType, string>> = {
+  name_response: "참고 평균 3.62초 (전근아·김휘영 2025, 18~48개월)",
+};
+
 export function getPeerNorm(taskType: TaskType, ageMonths: number): number | null {
   const minAge = MIN_NORM_MONTHS[taskType];
   if (minAge !== undefined && ageMonths < minAge) return null;

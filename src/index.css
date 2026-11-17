@@ -11,6 +11,14 @@ body {
   overscroll-behavior: none;
 }
 
+/* 휠 선택기 스크롤바 숨기기 */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* date input 캘린더 아이콘 숨기기 — 커스텀 DatePicker에서만 사용 */
 input[type="date"]::-webkit-calendar-picker-indicator {
   position: absolute;

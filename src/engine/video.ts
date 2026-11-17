@@ -19,7 +19,10 @@ function once(video: HTMLVideoElement, event: keyof HTMLMediaElementEventMap) {
     };
     const fail = () => {
       video.removeEventListener(event, ok);
-      reject(new Error("영상을 읽지 못했어요"));
+      // 원인 구분용: 어느 단계(event)에서, 어떤 오류 코드로 실패했는지 붙임
+      // 코드 1=중단, 2=네트워크, 3=디코딩 실패, 4=형식 미지원
+      const err = video.error;
+      reject(new Error(`영상을 읽지 못했어요 (${event}, 코드 ${err?.code ?? "?"}${err?.message ? `: ${err.message}` : ""})`));
     };
     video.addEventListener(event, ok, { once: true });
     video.addEventListener("error", fail, { once: true });
@@ -49,6 +52,7 @@ export async function forEachVideoFrame(
   onFrame: (video: HTMLVideoElement, t: number) => void,
   onProgress?: (ratio: number) => void
 ): Promise<VideoInfo> {
+  if (videoBlob.size === 0) throw new Error("녹화된 영상이 비어 있어요");
   const video = document.createElement("video");
   video.muted = true;
   video.playsInline = true;
@@ -56,7 +60,10 @@ export async function forEachVideoFrame(
   const url = URL.createObjectURL(videoBlob);
   try {
     video.src = url;
-    await once(video, "loadeddata");
+    // 아이폰 사파리는 화면에 붙지 않은 video에서 loadeddata를 안 보낼 때가 있어서
+    // 메타데이터까지만 기다림. 프레임은 아래에서 seek할 때마다 읽혀요.
+    video.load();
+    await once(video, "loadedmetadata");
     const duration = await resolveDuration(video);
 
     const step = 1 / fps;

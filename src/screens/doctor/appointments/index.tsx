@@ -1,106 +1,122 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { mockAppointments, mockPatients } from "../../../data/mockDoctor";
-import BottomNav from "../../../components/BottomNav";
-import { doctorNavItems } from "../_nav";
+import { mockAppointments, mockPatients, isoDay, type MockAppointment } from "../../../data/mockDoctor";
+import { CalendarIcon, CheckIcon, Chevron20Icon, InfoIcon, PlusIcon } from "../../../components/icons";
+import DoctorNav from "../_nav";
+import { DAY, WEEKDAY } from "../format";
 
-function formatAppt(date: string, time: string): string {
-  const d = new Date(date);
-  const days = ["일", "월", "화", "수", "목", "금", "토"];
-  const [h, m] = time.split(":").map(Number);
-  const ampm = h < 12 ? "오전" : "오후";
-  const hour = h <= 12 ? h : h - 12;
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]} · ${ampm} ${hour}:${String(m).padStart(2, "0")}`;
+// Figma 의사 버전 진료일정 — 프레임 없이 흩어진 부품을 조립함
+const toIso = (ts: number) => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+function statusText(a: MockAppointment, newRecords: number) {
+  if (a.status === "done") return "진료 완료 · 메모 저장됨";
+  if (a.status === "retake") return "재촬영 요청 보냄";
+  if (a.status === "unread") return `요약 미확인${newRecords ? ` · 새 기록 ${newRecords}` : ""}`;
+  return "예정";
 }
 
 export default function DoctorAppointmentsScreen() {
   const navigate = useNavigate();
-  const today = new Date().toISOString().split("T")[0];
+  const today = isoDay(0);
+  const [selected, setSelected] = useState(today);
 
-  const all = [...mockAppointments].sort((a, b) => a.date.localeCompare(b.date));
-  const upcoming = all.filter((a) => a.date >= today);
-  const past     = all.filter((a) => a.date <  today).reverse();
+  // 이번 주 (월요일 시작)
+  const [week] = useState(() => {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    const monday = d.getTime() - ((d.getDay() + 6) % 7) * DAY;
+    return Array.from({ length: 7 }, (_, i) => monday + i * DAY);
+  });
+  const month = new Date(week[3]).getMonth() + 1;
+  const hasAppt = (iso: string) => mockAppointments.some((a) => a.date === iso);
 
-  function ageMonths(patientId: string): number {
-    return mockPatients.find((p) => p.id === patientId)?.ageMonths ?? 0;
-  }
+  const list = mockAppointments
+    .filter((a) => a.date === selected)
+    .sort((a, b) => a.time.localeCompare(b.time))
+    .map((a) => ({ a, p: mockPatients.find((p) => p.id === a.patientId)! }));
+  const sel = new Date(`${selected}T12:00:00`);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col max-w-sm mx-auto">
-      {/* 헤더 */}
-      <div className="bg-white px-6 pt-14 pb-5 border-b border-gray-100">
-        <h1 className="text-[22px] font-bold text-gray-900">예약 관리</h1>
-        <p className="text-sm text-gray-500 mt-0.5">예정된 예약 {upcoming.length}건</p>
-      </div>
+    <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
+      <div className="flex-1 pb-6">
+        <div className="flex items-center justify-between px-5 pt-16">
+          <h1 className="text-2xl font-bold text-p-title">{month}월</h1>
+          <span className="flex items-center gap-1 text-sm font-bold text-brand-icon">
+            <CalendarIcon size={16} />
+            월 보기
+          </span>
+        </div>
 
-      {/* 목록 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-        {upcoming.length > 0 && (
-          <Section title="예정된 예약">
-            {upcoming.map((a) => (
-              <ApptCard
-                key={a.id}
-                label={formatAppt(a.date, a.time)}
-                patientName={a.patientName}
-                ageMonths={ageMonths(a.patientId)}
-                upcoming
-                onClick={() => navigate(`/doctor/patients/${a.patientId}`)}
-              />
-            ))}
-          </Section>
+        {/* 주간 달력 */}
+        <div className="mt-5 grid grid-cols-7 px-3 text-center">
+          {week.map((ts) => {
+            const iso = toIso(ts);
+            const d = new Date(ts);
+            const on = iso === selected;
+            return (
+              <button key={iso} type="button" onClick={() => setSelected(iso)} className="flex flex-col items-center">
+                <span className="text-[11px] text-p-gray">{WEEKDAY[d.getDay()]}</span>
+                <span className={`mt-2.5 flex h-[38px] w-[38px] items-center justify-center rounded-full text-base ${
+                  on ? "bg-brand font-bold text-white" : iso === today ? "font-bold text-brand-icon" : "text-p-title"
+                }`}>
+                  {d.getDate()}
+                </span>
+                <span className={`mt-1.5 h-[5px] w-[5px] rounded-full ${hasAppt(iso) ? "bg-brand" : ""}`} />
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-4 h-px bg-p-line" />
+
+        <div className="flex items-center justify-between px-5 pt-6">
+          <h2 className="text-base font-bold text-p-title">
+            {sel.getDate()}일 {WEEKDAY[sel.getDay()]}요일 · {list.length}건
+          </h2>
+          <span className="flex items-center gap-1 text-[13px] font-bold text-brand-icon">
+            <PlusIcon size={12} />
+            일정 추가
+          </span>
+        </div>
+
+        <ul className="mt-5 space-y-3 px-5">
+          {list.length === 0 && <li className="py-8 text-center text-sm text-p-gray">이날은 진료가 없어요</li>}
+          {list.map(({ a, p }) => {
+            const done = a.status === "done";
+            return (
+              <li key={a.id} className="flex items-start gap-4">
+                <span className="w-[42px] pt-3 text-sm font-bold text-p-title tabular-nums">{a.time}</span>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/doctor/patients/${p.id}`)}
+                  className={`flex min-h-[75px] flex-1 items-center rounded-xl px-4 text-left ${
+                    done ? "bg-p-card" : "border border-brand bg-white"
+                  }`}
+                >
+                  <span className="flex-1">
+                    <span className="flex items-baseline gap-1.5">
+                      <span className={`text-base font-bold ${done ? "text-p-light" : "text-p-title"}`}>{p.name}</span>
+                      <span className={`text-xs ${done ? "text-p-light" : "text-p-gray"}`}>{p.ageMonths}개월</span>
+                    </span>
+                    <span className={`mt-1.5 block text-xs ${done ? "text-p-light" : "text-p-gray"}`}>{statusText(a, p.newRecords)}</span>
+                  </span>
+                  {done ? <CheckIcon size={16} className="text-p-light" /> : <Chevron20Icon size={20} className="text-p-light" />}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        {list.length > 0 && (
+          <p className="mx-5 mt-4 ml-[78px] flex items-center gap-2 rounded-xl bg-brand-soft px-3.5 py-3 text-xs text-p-body">
+            <InfoIcon size={14} className="text-brand-icon" />
+            진료 하루 전 보호자에게 촬영 알림이 가요
+          </p>
         )}
-
-        {past.length > 0 && (
-          <Section title="지난 예약">
-            {past.map((a) => (
-              <ApptCard
-                key={a.id}
-                label={formatAppt(a.date, a.time)}
-                patientName={a.patientName}
-                ageMonths={ageMonths(a.patientId)}
-                upcoming={false}
-                onClick={() => navigate(`/doctor/patients/${a.patientId}`)}
-              />
-            ))}
-          </Section>
-        )}
       </div>
-
-      <BottomNav items={doctorNavItems} />
+      <DoctorNav />
     </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-xs font-medium text-gray-400 px-1 mb-2">{title}</p>
-      <div className="space-y-2">{children}</div>
-    </div>
-  );
-}
-
-function ApptCard({ label, patientName, ageMonths, upcoming, onClick }: {
-  label: string;
-  patientName: string;
-  ageMonths: number;
-  upcoming: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full bg-white rounded-2xl p-4 text-left flex items-center gap-4 shadow-sm active:bg-gray-50 transition-colors"
-    >
-      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${upcoming ? "bg-gray-900" : "bg-gray-300"}`} />
-      <div className="flex-1">
-        <p className={`text-sm font-medium ${upcoming ? "text-gray-900" : "text-gray-400"}`}>{label}</p>
-        <p className={`text-xs mt-0.5 ${upcoming ? "text-gray-500" : "text-gray-400"}`}>
-          {patientName} · {ageMonths}개월
-        </p>
-      </div>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round">
-        <path d="M6 4l4 4-4 4" />
-      </svg>
-    </button>
   );
 }

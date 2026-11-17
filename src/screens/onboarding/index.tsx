@@ -1,246 +1,229 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChildStore } from "../../store/child";
-import { correctedAgeMonths } from "../../utils/ageCalc";
-import DatePicker from "../../components/DatePicker";
+import { Field, SelectBox, TextBox, PageHeader, BottomButton } from "../../components/FormField";
+import {
+  GenderSheet,
+  BirthDateSheet,
+  WeightSheet,
+  HeightSheet,
+  PrematureSheet,
+  WeeksSheet,
+  RegionSheet,
+  SiblingSheet,
+} from "./sheets";
+import { SIBLING_LABEL } from "./labels";
 
-const REGIONS = [
-  "서울", "경기", "인천", "부산", "대구", "광주",
-  "대전", "울산", "세종", "강원", "충북", "충남",
-  "전북", "전남", "경북", "경남", "제주",
-];
+// Figma(와이어프레임 페이지) 흐름: 출생 정보("다음") → 우리 아이 정보("완료")
 
-const today = new Date().toISOString().split("T")[0];
+type Sheet =
+  | "premature" | "weeks" | "region" | "sibling"
+  | "gender" | "birthDate" | "weight" | "height"
+  | null;
+
+// 몸무게·키·임신 주수: undefined = 아직 안 고름, null = "잘 모르겠어요"
+type Measure = number | null | undefined;
+
+const UNKNOWN = "잘 모르겠어요";
+
+function formatDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${y}년 ${Number(m)}월 ${Number(d)}일`;
+}
 
 export default function OnboardingScreen() {
   const navigate = useNavigate();
   const setProfile = useChildStore((s) => s.setProfile);
 
-  const [name, setName] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [gender, setGender] = useState<"male" | "female" | null>(null);
-  const [isPremature, setIsPremature] = useState(false);
-  const [gestationalWeeks, setGestationalWeeks] = useState("");
-  const [region, setRegion] = useState("");
+  const [step, setStep] = useState<1 | 2>(1);
+  const [sheet, setSheet] = useState<Sheet>(null);
+
+  // 1단계: 출생 정보
+  const [premature, setPremature] = useState<boolean | null>(null);
+  const [weeks, setWeeks] = useState<Measure>(undefined);
+  const [region, setRegion] = useState<{ province: string; district: string } | null>(null);
   const [siblingOrder, setSiblingOrder] = useState<number | null>(null);
 
-  const ageMonths = useMemo(() => {
-    if (!birthDate) return null;
-    const weeks =
-      isPremature && gestationalWeeks ? parseInt(gestationalWeeks) : undefined;
-    return correctedAgeMonths(birthDate, weeks);
-  }, [birthDate, isPremature, gestationalWeeks]);
+  // 2단계: 우리 아이 정보
+  const [name, setName] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | null>(null);
+  const [birthDate, setBirthDate] = useState("");
+  const [weight, setWeight] = useState<Measure>(undefined);
+  const [height, setHeight] = useState<Measure>(undefined);
 
-  const prematureValid = !isPremature || (gestationalWeeks !== "" && parseInt(gestationalWeeks) >= 23 && parseInt(gestationalWeeks) <= 36);
-  const isValid =
+  const step1Valid =
+    premature !== null &&
+    (!premature || weeks !== undefined) &&
+    region !== null &&
+    siblingOrder !== null;
+
+  const step2Valid =
     name.trim() !== "" &&
-    birthDate !== "" &&
     gender !== null &&
-    region !== "" &&
-    siblingOrder !== null &&
-    prematureValid;
+    birthDate !== "" &&
+    weight !== undefined &&
+    height !== undefined;
+
+  const close = () => setSheet(null);
 
   function handleSubmit() {
-    if (!isValid || !gender) return;
+    if (!step1Valid || !step2Valid || !gender || !region) return;
     setProfile({
       id: crypto.randomUUID(),
       name: name.trim(),
       birthDate,
       gender,
-      gestationalWeeks:
-        isPremature && gestationalWeeks ? parseInt(gestationalWeeks) : undefined,
-      region: region || undefined,
+      premature: premature ?? undefined,
+      gestationalWeeks: premature && typeof weeks === "number" ? weeks : undefined,
+      region: region.province,
+      district: region.district,
       siblingOrder: siblingOrder ?? undefined,
+      weightKg: weight ?? undefined,
+      heightCm: height ?? undefined,
       createdAt: Date.now(),
     });
     navigate("/tasks");
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
-        {/* 로고 */}
-        <div className="pt-12 pb-8">
-          <div className="flex items-center gap-2 mb-8">
-            <LogoIcon />
-            <span className="font-semibold text-gray-900 text-sm tracking-tight">
-              GrowthLens
-            </span>
-          </div>
-          <h1 className="text-[26px] font-bold text-gray-900 leading-tight mb-1.5">
-            아이 정보를 알려주세요
-          </h1>
-          <p className="text-sm text-gray-500">
-            월령에 맞는 관찰 과제를 준비해 드릴게요
-          </p>
-        </div>
+    <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto font-noto">
+      {step === 1 ? (
+        <>
+          <PageHeader title="출생 정보" onBack={() => navigate(-1)} />
+          <div className="flex-1 px-6 pt-6 space-y-[22px]">
+            <Field label="조산 여부">
+              <SelectBox
+                value={premature === null ? "" : premature ? "조산" : "만삭 출산"}
+                placeholder="선택해주세요"
+                active={sheet === "premature"}
+                onClick={() => setSheet("premature")}
+              />
+            </Field>
 
-        <div className="space-y-5">
-          {/* 아이 이름 */}
-          <div>
-            <label className="block text-sm text-gray-700 mb-1.5">아이 이름</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="하온"
-              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 bg-white"
-            />
-          </div>
-
-          {/* 생년월일 */}
-          <div>
-            <label className="block text-sm text-gray-700 mb-1.5">생년월일</label>
-            <DatePicker value={birthDate} onChange={setBirthDate} max={today} placeholder="날짜 선택" />
-            {ageMonths !== null && (
-              <p className="mt-2 text-sm font-medium text-gray-700">
-                현재 {ageMonths}개월 · {ageMonths}~{ageMonths + 1}개월 과제가 준비돼요
-              </p>
+            {/* 조산을 골랐을 때만 보이는 칸. 시트는 조산을 고르는 순간 자동으로 열려요 */}
+            {premature && (
+              <Field label="출생 시 임신 주수">
+                <SelectBox
+                  value={weeks === undefined ? "" : weeks === null ? UNKNOWN : `${weeks}주`}
+                  placeholder="주수를 선택해주세요"
+                  active={sheet === "weeks"}
+                  onClick={() => setSheet("weeks")}
+                />
+              </Field>
             )}
-          </div>
 
-          {/* 성별 */}
-          <div>
-            <label className="block text-sm text-gray-700 mb-1.5">성별</label>
-            <div className="flex gap-2">
-              {(["male", "female"] as const).map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setGender(g)}
-                  className={`flex-1 py-3.5 rounded-2xl border text-sm font-medium transition-colors ${
-                    gender === g
-                      ? "bg-gray-900 text-white border-gray-900"
-                      : "bg-white text-gray-700 border-gray-200"
-                  }`}
-                >
-                  {g === "male" ? "남아" : "여아"}
-                </button>
-              ))}
-            </div>
-          </div>
+            <Field label="거주지역">
+              <SelectBox
+                value={region ? `${region.province} ${region.district}` : ""}
+                placeholder="지역을 선택해주세요"
+                active={sheet === "region"}
+                onClick={() => setSheet("region")}
+              />
+            </Field>
 
-          {/* 조산 여부 */}
-          <div>
-            <div className="flex items-center justify-between py-0.5">
-              <div>
-                <p className="text-sm text-gray-700">조산이에요</p>
-                <p className="text-xs text-gray-400">37주 미만 출생</p>
-              </div>
-              <Toggle value={isPremature} onChange={setIsPremature} />
-            </div>
-            {isPremature && (
-              <div className="mt-3">
-                <label className="block text-sm text-gray-700 mb-1.5">
-                  임신 몇 주에 태어났나요?
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={gestationalWeeks}
-                    onChange={(e) => setGestationalWeeks(e.target.value)}
-                    placeholder="예: 32"
-                    min={23}
-                    max={36}
-                    className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-gray-400 bg-white pr-10"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">주</span>
-                </div>
-                <p className="mt-1.5 text-xs text-gray-400">
-                  출생 기록지(퇴원 요약지)에서 확인할 수 있어요 · 23~36주 사이
-                </p>
-              </div>
-            )}
+            <Field label="출생 순서">
+              <SelectBox
+                value={siblingOrder ? SIBLING_LABEL[siblingOrder] : ""}
+                placeholder="선택해주세요"
+                active={sheet === "sibling"}
+                onClick={() => setSheet("sibling")}
+              />
+            </Field>
           </div>
+          <BottomButton label="다음" disabled={!step1Valid} onClick={() => setStep(2)} />
+        </>
+      ) : (
+        <>
+          <PageHeader title="우리 아이 정보" onBack={() => setStep(1)} />
+          <div className="flex-1 px-6 pt-6 space-y-[22px]">
+            <Field label="이름">
+              <TextBox
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="이름을 입력해주세요"
+              />
+            </Field>
 
-          {/* 거주 지역 */}
-          <div>
-            <label className="block text-sm text-gray-700 mb-1.5">거주 지역</label>
-            <select
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 text-gray-900 focus:outline-none focus:border-gray-400 bg-white appearance-none"
-            >
-              <option value="">선택 안 함</option>
-              {REGIONS.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
+            <Field label="성별">
+              <SelectBox
+                value={gender === null ? "" : gender === "male" ? "남아" : "여아"}
+                placeholder="선택해주세요"
+                active={sheet === "gender"}
+                onClick={() => setSheet("gender")}
+              />
+            </Field>
+
+            <Field label="생년월일">
+              <SelectBox
+                value={birthDate ? formatDate(birthDate) : ""}
+                placeholder="날짜를 선택해주세요"
+                icon="calendar"
+                active={sheet === "birthDate"}
+                onClick={() => setSheet("birthDate")}
+              />
+            </Field>
+
+            <Field label="몸무게">
+              <SelectBox
+                value={weight === undefined ? "" : weight === null ? UNKNOWN : `${weight.toFixed(1)}kg`}
+                placeholder="몸무게를 선택해주세요"
+                active={sheet === "weight"}
+                onClick={() => setSheet("weight")}
+              />
+            </Field>
+
+            <Field label="키">
+              <SelectBox
+                value={height === undefined ? "" : height === null ? UNKNOWN : `${height}cm`}
+                placeholder="키를 선택해주세요"
+                active={sheet === "height"}
+                onClick={() => setSheet("height")}
+              />
+            </Field>
           </div>
+          <BottomButton label="완료" disabled={!step2Valid} onClick={handleSubmit} />
+        </>
+      )}
 
-          {/* 출생 순서 */}
-          <div>
-            <label className="block text-sm text-gray-700 mb-1.5">출생 순서</label>
-            <div className="flex gap-2">
-              {[
-                { label: "첫째", value: 1 },
-                { label: "둘째", value: 2 },
-                { label: "셋째 이상", value: 3 },
-              ].map(({ label, value }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() =>
-                    setSiblingOrder(siblingOrder === value ? null : value)
-                  }
-                  className={`flex-1 py-3 rounded-2xl border text-sm font-medium transition-colors ${
-                    siblingOrder === value
-                      ? "bg-gray-900 text-white border-gray-900"
-                      : "bg-white text-gray-700 border-gray-200"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 하단 고정 영역 */}
-      <div className="px-6 pb-8 pt-4 bg-white border-t border-gray-50">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!isValid}
-          className={`w-full py-4 rounded-2xl text-white font-semibold text-base transition-colors ${
-            isValid ? "bg-gray-900" : "bg-gray-300"
-          }`}
-        >
-          시작하기
-        </button>
-        <p className="text-center text-xs text-gray-400 mt-3">
-          GrowthLens는 진단하지 않아요. 집에서의 관찰 기록을 돕습니다.
-        </p>
-      </div>
+      {/* 선택 시트 */}
+      {sheet === "premature" && (
+        <PrematureSheet
+          value={premature}
+          onClose={close}
+          onSelect={(v) => {
+            setPremature(v);
+            if (v) {
+              // 조산을 고르면 바로 임신 주수 시트를 띄움
+              setSheet("weeks");
+            } else {
+              setWeeks(undefined);
+              close();
+            }
+          }}
+        />
+      )}
+      {sheet === "weeks" && (
+        <WeeksSheet value={weeks} onClose={close} onSelect={(v) => { setWeeks(v); close(); }} />
+      )}
+      {sheet === "region" && (
+        <RegionSheet value={region} onClose={close} onSelect={(v) => { setRegion(v); close(); }} />
+      )}
+      {sheet === "sibling" && (
+        <SiblingSheet value={siblingOrder} onClose={close} onSelect={(v) => { setSiblingOrder(v); close(); }} />
+      )}
+      {sheet === "gender" && (
+        <GenderSheet value={gender} onClose={close} onSelect={(v) => { setGender(v); close(); }} />
+      )}
+      {sheet === "birthDate" && (
+        <BirthDateSheet value={birthDate} onClose={close} onSelect={(v) => { setBirthDate(v); close(); }} />
+      )}
+      {sheet === "weight" && (
+        <WeightSheet value={weight} onClose={close} onSelect={(v) => { setWeight(v); close(); }} />
+      )}
+      {sheet === "height" && (
+        <HeightSheet value={height} onClose={close} onSelect={(v) => { setHeight(v); close(); }} />
+      )}
     </div>
-  );
-}
-
-function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!value)}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
-        value ? "bg-gray-900" : "bg-gray-200"
-      }`}
-    >
-      <span
-        className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-          value ? "translate-x-5" : "translate-x-0.5"
-        }`}
-      />
-    </button>
-  );
-}
-
-function LogoIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="26" height="26" rx="5" stroke="#111" strokeWidth="1.5" />
-      <line x1="8" y1="8" x2="20" y2="20" stroke="#111" strokeWidth="1.5" strokeLinecap="round" />
-      <line x1="20" y1="8" x2="8" y2="20" stroke="#111" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
   );
 }
