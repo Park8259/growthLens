@@ -237,7 +237,7 @@ export function PrematureSheet({
   const [draft, setDraft] = useState(value);
   const options = [
     { v: true, label: "조산", sub: "임신 37주 미만" },
-    { v: false, label: "정상 출산", sub: "임신 37주 이상" },
+    { v: false, label: "만삭 출산", sub: "임신 37주 이상" },
   ];
   return (
     <BottomSheet open onClose={onClose} title="조산 여부를 선택해주세요">

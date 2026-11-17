@@ -93,7 +93,7 @@ export default function OnboardingScreen() {
           <div className="flex-1 px-6 pt-6 space-y-[22px]">
             <Field label="조산 여부">
               <SelectBox
-                value={premature === null ? "" : premature ? "조산" : "정상 출산"}
+                value={premature === null ? "" : premature ? "조산" : "만삭 출산"}
                 placeholder="선택해주세요"
                 active={sheet === "premature"}
                 onClick={() => setSheet("premature")}
