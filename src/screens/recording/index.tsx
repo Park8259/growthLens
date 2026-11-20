@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useRecordsStore } from "../../store/records";
 import { analyzeVideo } from "../../engine/analyzeVideo";
 import { BackIcon, CheckIcon, LockIcon } from "../../components/icons";
@@ -71,6 +71,10 @@ export default function RecordingScreen() {
   // 휴대폰 후면 카메라는 반전하지 않음. (녹화되는 영상 자체는 어느 쪽이든 반전되지 않아요)
   const [mirror, setMirror] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  // ?debug=1 이면 켜진 카메라 정보를 화면에 보여줌 (광각 여부 확인용)
+  const [params] = useSearchParams();
+  const debug = params.get("debug") === "1";
+  const [camInfo, setCamInfo] = useState("");
 
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -90,8 +94,10 @@ export default function RecordingScreen() {
         });
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
-        const facing = stream.getVideoTracks()[0]?.getSettings().facingMode;
+        const track = stream.getVideoTracks()[0];
+        const facing = track?.getSettings().facingMode;
         setMirror(facing !== "environment");
+        if (debug && track) describeCamera(track).then(setCamInfo).catch(() => setCamInfo("카메라 정보를 읽지 못했어요"));
         if (videoRef.current) videoRef.current.srcObject = stream;
         setPhase("prep");
       } catch {
@@ -105,7 +111,7 @@ export default function RecordingScreen() {
       cancelled = true;
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
-  }, []);
+  }, [debug]);
 
   // 준비 화면: 1초마다 화면 밝기 확인 (평균 밝기 60/255 이상이면 충분)
   useEffect(() => {
@@ -274,6 +280,12 @@ export default function RecordingScreen() {
       />
       <div className={`absolute inset-0 transition-colors duration-200 ${flash ? "bg-brand/40" : "bg-p-dark/40"}`} />
 
+      {debug && camInfo && (
+        <pre className="absolute inset-x-2 top-2 z-30 max-h-[45%] overflow-auto whitespace-pre-wrap rounded-lg bg-black/75 p-2 text-[10px] leading-[14px] text-white">
+          {camInfo}
+        </pre>
+      )}
+
       {/* 상단 */}
       {live ? (
         <div className="absolute inset-x-0 top-[57px] flex items-center justify-between px-[23px]">
@@ -359,6 +371,20 @@ export default function RecordingScreen() {
       </div>
     </div>
   );
+}
+
+/** 진단용: 켜진 카메라 이름·해상도·확대 범위와 기기의 카메라 목록 */
+async function describeCamera(track: MediaStreamTrack): Promise<string> {
+  const s = track.getSettings() as MediaTrackSettings & { zoom?: number };
+  const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { zoom?: { min: number; max: number } };
+  const devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+  return [
+    `켜진 카메라: ${track.label || "(이름 없음)"}`,
+    `방향: ${s.facingMode ?? "?"}  해상도: ${s.width}x${s.height}  비율: ${s.aspectRatio?.toFixed(2) ?? "?"}  fps: ${s.frameRate ?? "?"}`,
+    `확대: 지금 ${s.zoom ?? "?"} / 가능 ${caps.zoom ? `${caps.zoom.min}~${caps.zoom.max}` : "정보 없음"}`,
+    `기기의 카메라 ${devices.length}개:`,
+    ...devices.map((d, i) => `  ${i + 1}. ${d.label || "(이름 없음)"}${d.deviceId === s.deviceId ? "  ← 사용 중" : ""}`),
+  ].join("\n");
 }
 
 /** 데모용 "영상 파일로 분석" 버튼 (작게, 눈에 덜 띄게) */
