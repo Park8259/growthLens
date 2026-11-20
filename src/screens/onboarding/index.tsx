@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChildStore } from "../../store/child";
-import { Field, SelectBox, TextBox, PageHeader, BottomButton } from "../../components/FormField";
+import { Field, SelectBox, TextBox, PageHeader, BottomButton, StepBar } from "../../components/FormField";
 import {
   GenderSheet,
   BirthDateSheet,
@@ -83,7 +83,8 @@ export default function OnboardingScreen() {
       heightCm: height ?? undefined,
       createdAt: Date.now(),
     });
-    navigate("/tasks");
+    // 회원가입 마지막 단계: 이용약관
+    navigate("/signup/terms");
   }
 
   return (
@@ -91,6 +92,7 @@ export default function OnboardingScreen() {
       {step === 2 ? (
         <>
           <PageHeader title="출생 정보" onBack={() => setStep(1)} />
+          <StepBar step={3} />
           <div className="flex-1 px-6 pt-6 space-y-[22px]">
             <Field label="조산 여부">
               <SelectBox
@@ -136,6 +138,7 @@ export default function OnboardingScreen() {
       ) : (
         <>
           <PageHeader title="우리 아이 정보" onBack={() => navigate(-1)} />
+          <StepBar step={2} />
           <div className="flex-1 px-6 pt-6 space-y-[22px]">
             <Field label="이름">
               <TextBox

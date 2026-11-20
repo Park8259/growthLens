@@ -5,9 +5,9 @@ import { useQuestionsStore } from "../../store/questions";
 import { correctedAgeMonths } from "../../utils/ageCalc";
 import ParentNav from "../../components/ParentNav";
 import BottomSheet from "../../components/BottomSheet";
-import { CheckIcon, ChevronRightIcon, PdfIcon, PlayIcon, QuestionIcon } from "../../components/icons";
+import { ChevronRightIcon, PdfIcon, QuestionIcon } from "../../components/icons";
 import { TASK_LABEL, TASK_ORDER, unitOf } from "../../data/tasks";
-import TaskIcon from "../../components/TaskIcon";
+import TaskIllust from "../../components/TaskIllust";
 import type { TaskType } from "../../types/analysis";
 
 // Figma 부모 버전 "진료요약" + "진료코드"(공유 시트)
@@ -19,10 +19,6 @@ const fmtYmd = (ts: number) => {
 const fmtMd = (ts: number) => {
   const d = new Date(ts);
   return `${d.getMonth() + 1}. ${d.getDate()}`;
-};
-const fmtSlash = (ts: number) => {
-  const d = new Date(ts);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
 };
 const dayKey = (ts: number) => new Date(ts).toDateString();
 
@@ -48,8 +44,6 @@ export default function ClinicSummaryScreen() {
 
   const sorted = [...records].sort((a, b) => a.recordedAt - b.recordedAt);
   const successes = sorted.filter((r) => r.result.status === "success" && r.result.metric);
-  const scenes = [...successes].reverse().slice(0, 3);
-  const [picked, setPicked] = useState<string[]>(() => scenes.slice(0, 2).map((r) => r.id));
 
   if (!profile) return null;
 
@@ -71,10 +65,6 @@ export default function ClinicSummaryScreen() {
   const doneCount = successes.length;
   const dayCount = new Set(sorted.map((r) => dayKey(r.recordedAt))).size;
   const retryCount = sorted.filter((r) => r.result.status === "retry_needed").length;
-
-  function togglePick(id: string) {
-    setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto print:min-h-0 print:max-w-[560px]">
@@ -116,9 +106,7 @@ export default function ClinicSummaryScreen() {
             {taskRows.length === 0 && <li className="py-3 text-sm text-p-gray">아직 기록이 없어요</li>}
             {taskRows.map(({ task, first: f, last: l }) => (
               <li key={task} className="flex items-center py-3 first:pt-0 last:pb-0">
-                <span className="flex h-[34px] w-[34px] items-center justify-center rounded-lg bg-brand-soft text-brand-icon">
-                  <TaskIcon task={task} size={18} />
-                </span>
+                <TaskIllust task={task} size={34} />
                 <span className="ml-2.5 flex-1 text-sm font-bold text-p-title">{TASK_LABEL[task]}</span>
                 <span className="text-sm text-p-gray tabular-nums">{f!.value}{unitOf(f!.unit)} →&nbsp;</span>
                 <span className="w-12 text-sm font-bold text-p-title tabular-nums">{l!.value}{unitOf(l!.unit)}</span>
@@ -202,34 +190,6 @@ export default function ClinicSummaryScreen() {
           </ul>
         </section>
 
-        {/* 함께 보낼 장면 */}
-        {scenes.length > 0 && (
-          <section className="mt-12 px-[18px]">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-p-title">함께 보낼 장면</h2>
-              <span className="text-[13px] text-p-gray">{picked.length}개 선택</span>
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {scenes.map((r) => {
-                const on = picked.includes(r.id);
-                return (
-                  <button key={r.id} type="button" onClick={() => togglePick(r.id)} aria-pressed={on} className="text-left">
-                    <span className="relative flex h-[92px] items-center justify-center rounded-xl bg-brand-photo text-brand-icon">
-                      <PlayIcon size={22} />
-                      <span className={`absolute right-1.5 top-1.5 flex h-[22px] w-[22px] items-center justify-center rounded-full text-white ${on ? "bg-brand" : "border border-white bg-black/10"}`}>
-                        {on && <CheckIcon size={14} />}
-                      </span>
-                    </span>
-                    <span className="mt-2 block text-xs text-p-body">
-                      {TASK_LABEL[r.taskType]} · {fmtSlash(r.recordedAt)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="mt-3 text-xs text-p-gray">영상은 공유할 때 직접 고른 장면만 보내져요</p>
-          </section>
-        )}
       </div>
 
       {/* 하단 버튼 */}
@@ -245,7 +205,7 @@ export default function ClinicSummaryScreen() {
       <ParentNav />
 
       {shareOpen && (
-        <ShareSheet sceneCount={picked.length} hasQuestions={questions.length > 0} onClose={() => setShareOpen(false)} />
+        <ShareSheet hasQuestions={questions.length > 0} onClose={() => setShareOpen(false)} />
       )}
     </div>
   );
@@ -258,7 +218,7 @@ function Card({ children }: { children: React.ReactNode }) {
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /** "선생님께 보여주세요" — QR과 6자리 코드. 데모용 QR 이미지(Figma)를 써요. */
-function ShareSheet({ sceneCount, hasQuestions, onClose }: { sceneCount: number; hasQuestions: boolean; onClose: () => void }) {
+function ShareSheet({ hasQuestions, onClose }: { hasQuestions: boolean; onClose: () => void }) {
   const [code] = useState(() => Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join(""));
   const [expiresAt] = useState(() => Date.now() + 60 * 60 * 1000);
   const [now, setNow] = useState(() => Date.now());
@@ -269,7 +229,8 @@ function ShareSheet({ sceneCount, hasQuestions, onClose }: { sceneCount: number;
     return () => window.clearInterval(t);
   }, []);
   const minutes = Math.max(0, Math.ceil((expiresAt - now) / 60000));
-  const contents = ["지표", hasQuestions && "질문", sceneCount > 0 && `장면 ${sceneCount}개`].filter(Boolean).join(" · ");
+  // 영상(장면)은 보내지 않아요. 필요하면 보호자 휴대폰에서 직접 보여줘요
+  const contents = ["지표", hasQuestions && "질문"].filter(Boolean).join(" · ");
 
   async function sendLink() {
     const url = `${location.origin}/doctor/invite?code=${code}`;

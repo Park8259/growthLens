@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useChildStore } from "../store/child";
 
 /**
- * 베베뷰 로고. 누르면 아이 정보를 지우고 역할 선택 화면으로 돌아가요.
+ * 베베뷰 로고. 누르면 아이 정보를 지우고 시작(회원가입·로그인) 화면으로 돌아가요.
  * (데모 때 정보입력부터 다시 보여주기 위한 숨은 기능. 기록은 지우지 않아요)
  */
 export default function LogoReset({ mark = 31, word = 36 }: { mark?: number; word?: number }) {

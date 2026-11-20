@@ -18,7 +18,7 @@ export default {
       // 베베뷰 Figma(와이어프레임 페이지) 색상
       colors: {
         brand: {
-          DEFAULT: "#74DCFF", // 주요 버튼, 선택 테두리
+          DEFAULT: "#14C4FF", // 주요 버튼, 선택 테두리 (Figma 11/20 수정: #74DCFF → #14C4FF)
           light: "#DFF7FF",   // 선택된 카드 배경
           soft: "#E6F8FF",    // 아이콘 바탕, 안내 상자
           chip: "#DAF6FF",    // 과제 이름 칩

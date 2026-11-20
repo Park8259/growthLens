@@ -6,7 +6,7 @@ import type { FaceTrace } from "../../types/analysis";
 
 const OUTLINE_POINTS = 36; // pts의 앞 36점이 얼굴 윤곽, 마지막 1점이 코끝
 const EVENT_SEC = 1.5; // "이름을 불렀어요" 같은 알림을 띄워 두는 시간
-const BRAND = "#74DCFF";
+const BRAND = "#14C4FF";
 const DEEP = "#0E8DBA";
 
 export default function TraceReplay({ video, trace }: { video: Blob; trace: FaceTrace }) {

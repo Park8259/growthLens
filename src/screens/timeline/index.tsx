@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useRecordsStore } from "../../store/records";
 import ParentNav from "../../components/ParentNav";
 import { TASK_LABEL, unitOf } from "../../data/tasks";
-import TaskIcon from "../../components/TaskIcon";
+import TaskIllust from "../../components/TaskIllust";
 import type { TaskType } from "../../types/analysis";
 
 // Figma 부모 버전 "기록"
@@ -91,9 +91,7 @@ export default function TimelineScreen() {
                         onClick={() => navigate(ok ? `/replay/${r.id}` : `/task-guide/${r.taskType}`)}
                         className="flex w-full items-center px-1 text-left"
                       >
-                        <span className={`flex h-[38px] w-[38px] items-center justify-center rounded-[10px] ${ok ? "bg-brand-soft text-brand-icon" : "bg-p-card text-[#9C9C9C]"}`}>
-                          <TaskIcon task={r.taskType} size={19} />
-                        </span>
+                        <TaskIllust task={r.taskType} size={43} />
                         <span className="ml-3 flex-1">
                           <span className="block text-[15px] font-bold text-p-title">{TASK_LABEL[r.taskType]}</span>
                           <span className="mt-1 block text-xs text-p-light">{timeLabel(r.recordedAt)}</span>

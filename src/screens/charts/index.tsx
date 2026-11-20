@@ -3,7 +3,7 @@ import { useRecordsStore } from "../../store/records";
 import ParentNav from "../../components/ParentNav";
 import { TrendIcon } from "../../components/icons";
 import { TASK_LABEL, TASK_ORDER, unitOf } from "../../data/tasks";
-import TaskIcon from "../../components/TaskIcon";
+import TaskIllust from "../../components/TaskIllust";
 
 // Figma 부모 버전 "변화". 기록이 3회 미만이면 칸 3개 진행 막대, 3회 이상이면 꺾은선 그래프
 const NEED = 3;
@@ -88,9 +88,7 @@ export default function ChartsScreen() {
             const sameDay = last ? recs.filter((r) => fmtDay(r.recordedAt) === fmtDay(last.recordedAt)) : [];
             return (
               <li key={task} className="flex h-[65px] items-center border-b border-p-line">
-                <span className={`flex h-10 w-10 items-center justify-center rounded-[10px] ${last ? "bg-brand-soft text-brand-deep" : "bg-p-card text-p-light"}`}>
-                  <TaskIcon task={task} size={20} />
-                </span>
+                <TaskIllust task={task} size={43} />
                 <span className="ml-3 flex-1">
                   <span className="block text-[15px] font-bold text-p-title">{TASK_LABEL[task]}</span>
                   <span className="mt-1 block text-xs text-p-gray">
@@ -127,8 +125,8 @@ function LineChart({ values }: { values: number[] }) {
   return (
     <div className="mt-3">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-        <path d={d} stroke="#74DCFF" strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={3.5} fill="#fff" stroke="#74DCFF" strokeWidth={2} />)}
+        <path d={d} stroke="#14C4FF" strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {pts.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={3.5} fill="#fff" stroke="#14C4FF" strokeWidth={2} />)}
       </svg>
       <p className="mt-1 text-[13px] text-p-body">
         최근 <b className="text-brand-deep">{Math.round(last)}%</b> · 기록 {values.length}회
