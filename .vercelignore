@@ -1,0 +1,7 @@
+﻿# Vercel 업로드에서 뺄 것 (Vercel이 설치·빌드를 다시 함)
+node_modules
+dist
+.git
+public/mediapipe
+*.mp4
+*.webm
