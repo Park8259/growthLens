@@ -67,6 +67,9 @@ export default function RecordingScreen() {
   const [beeps, setBeeps] = useState(0);
   const [flash, setFlash] = useState(false);
   const [bright, setBright] = useState<boolean | null>(null);
+  // 미리보기 좌우 반전: 나를 비추는 전면 카메라(노트북 웹캠 등)일 때만 거울처럼 보여줌.
+  // 휴대폰 후면 카메라는 반전하지 않음. (녹화되는 영상 자체는 어느 쪽이든 반전되지 않아요)
+  const [mirror, setMirror] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -87,6 +90,8 @@ export default function RecordingScreen() {
         });
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
+        const facing = stream.getVideoTracks()[0]?.getSettings().facingMode;
+        setMirror(facing !== "environment");
         if (videoRef.current) videoRef.current.srcObject = stream;
         setPhase("prep");
       } catch {
@@ -265,7 +270,7 @@ export default function RecordingScreen() {
         muted
         playsInline
         className="absolute inset-0 h-full w-full object-cover"
-        style={{ transform: "scaleX(-1)" }}
+        style={mirror ? { transform: "scaleX(-1)" } : undefined}
       />
       <div className={`absolute inset-0 transition-colors duration-200 ${flash ? "bg-brand/40" : "bg-p-dark/40"}`} />
 
