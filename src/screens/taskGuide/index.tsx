@@ -4,7 +4,7 @@ import { Pill } from "../../components/ParentNav";
 import {
   BackIcon, BallIcon, ImagePlaceholderIcon, PhoneIcon, PinIcon, RulerIcon, SunIcon, VideoIcon,
 } from "../../components/icons";
-import { TASK_GUIDE, TASK_LABEL, nextVisit } from "../../data/tasks";
+import { TASK_GUIDE, TASK_LABEL } from "../../data/tasks";
 import type { TaskType } from "../../types/analysis";
 
 const CHECKLIST = [
@@ -23,7 +23,6 @@ export default function TaskGuideScreen() {
   if (!taskType || !(taskType in TASK_LABEL)) return null;
   const task = taskType as TaskType;
   const count = records.filter((r) => r.taskType === task).length;
-  const visit = nextVisit();
 
   return (
     <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
@@ -42,14 +41,12 @@ export default function TaskGuideScreen() {
           <span className="text-[11px]">촬영 예시 이미지</span>
         </div>
 
-        <div className="mt-3.5 flex gap-2 px-2.5">
-          {count > 0 && <Pill>새 기록 {count}</Pill>}
-          {visit.has && (
-            <Pill tone="gray">
-              {visit.month}/{visit.day} 진료
-            </Pill>
-          )}
-        </div>
+        {/* 진료일 칩은 뺐어요: 보호자가 실제로 잡은 진료가 아니라 데모 데이터라서 */}
+        {count > 0 && (
+          <div className="mt-3.5 flex gap-2 px-2.5">
+            <Pill>기록 {count}회</Pill>
+          </div>
+        )}
 
         <h2 className="mt-3 px-2.5 text-[26px] leading-[31px] font-bold text-p-title">{TASK_LABEL[task]}</h2>
         <p className="mt-3 px-2.5 text-base leading-6 text-p-body whitespace-pre-line">{TASK_GUIDE[task]}</p>
