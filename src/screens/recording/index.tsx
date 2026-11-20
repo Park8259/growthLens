@@ -212,7 +212,8 @@ export default function RecordingScreen() {
       }
       if (sec >= duration) {
         window.clearInterval(t);
-        playBeep(); // 끝났다는 소리
+        // 끝났다는 소리 (호명 반응은 이름 부르는 신호와 헷갈리지 않게 생략)
+        if (task !== "name_response") playBeep();
         stopAndAnalyze();
       }
     }, 1000);
@@ -220,7 +221,7 @@ export default function RecordingScreen() {
       window.clearInterval(t);
       window.clearTimeout(flashTimer);
     };
-  }, [phase, needsStimulus, duration, stopAndAnalyze]);
+  }, [phase, needsStimulus, duration, stopAndAnalyze, task]);
 
   /** 그만 찍기 / 닫기: 저장하지 않고 나감 */
   function handleQuit() {
@@ -352,7 +353,7 @@ export default function RecordingScreen() {
           <>
             <p className="px-2 text-xl font-bold text-p-title">{TASK_PREP_TITLE[task]}</p>
             <p className="mt-3 px-2 text-sm leading-6 text-p-gray">
-              시작을 누르고 아이 앞에 앉으면 {COUNTDOWN_SEC}초 뒤 촬영이 시작되고, {duration === 60 ? "1분" : `${duration}초`} 뒤 소리로 알려드려요.
+              시작을 누르고 아이 앞에 앉으면 {COUNTDOWN_SEC}초 뒤 촬영이 시작되고, {duration === 60 ? "1분" : `${duration}초`} 뒤 {task === "name_response" ? "자동으로 끝나요" : "소리로 알려드려요"}.
             </p>
             {phase === "countdown" ? (
               <div className="mt-5 flex h-[58px] items-center justify-center rounded-[14px] bg-p-card text-base font-bold text-p-body">

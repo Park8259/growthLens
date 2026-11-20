@@ -19,7 +19,7 @@ export const TASK_SHORT: Record<TaskType, string> = {
 };
 
 export const TASK_META: Record<TaskType, string> = {
-  name_response: "약 30초",
+  name_response: "약 20초",
   imitation: "약 30초",
   ball_play: "약 1분 · 준비물 단색 공",
 };
@@ -66,7 +66,7 @@ export const TASK_RETRY_TIPS: Record<TaskType, string[]> = {
 
 /** 측정 시간(초) */
 export const TASK_DURATION: Record<TaskType, number> = {
-  name_response: 30,
+  name_response: 20,
   imitation: 30,
   ball_play: 60,
 };
