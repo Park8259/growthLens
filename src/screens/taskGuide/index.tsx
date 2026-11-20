@@ -2,11 +2,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useRecordsStore } from "../../store/records";
 import { Pill } from "../../components/ParentNav";
 import {
-  BackIcon, BallIcon, ImagePlaceholderIcon, PhoneIcon, PinIcon, RulerIcon, SunIcon, VideoIcon,
+  BackIcon, ImagePlaceholderIcon, PhoneIcon, PinIcon, RulerIcon, SunIcon, VideoIcon,
 } from "../../components/icons";
 import { TASK_GUIDE, TASK_LABEL } from "../../data/tasks";
 import type { TaskType } from "../../types/analysis";
-import guideNameResponse from "../../assets/guide-name-response.jpg";
+import guideNameResponse from "../../assets/guide-name-response.png";
+import TaskIllust from "../../components/TaskIllust";
 
 const GUIDE_IMAGE: Partial<Record<TaskType, string>> = {
   name_response: guideNameResponse,
@@ -64,12 +65,15 @@ export default function TaskGuideScreen() {
         <h2 className="mt-3 px-2.5 text-[26px] leading-[31px] font-bold text-p-title">{TASK_LABEL[task]}</h2>
         <p className="mt-3 px-2.5 text-base leading-6 text-p-body whitespace-pre-line">{TASK_GUIDE[task]}</p>
 
-        {task === "ball_play" && (
-          <div className="mt-5 flex h-[70px] items-center gap-4 rounded-2xl bg-brand-soft px-[19px]">
-            <BallIcon size={20} className="text-brand-icon" />
+        {/* 준비물: Figma "호명반응" 안내처럼 과제 그림 + 한 줄 */}
+        {(task === "ball_play" || task === "name_response") && (
+          <div className="mt-5 flex h-[70px] items-center gap-3.5 rounded-2xl bg-brand-soft px-[11px]">
+            <TaskIllust task={task} size={48} />
             <div>
               <p className="text-[13px] font-bold text-brand-deep">준비물</p>
-              <p className="mt-1 text-[15px] font-bold text-p-title">밝은 단색 공 (지름 10~20cm)</p>
+              <p className="mt-1 text-[15px] font-bold text-p-title">
+                {task === "ball_play" ? "밝은 단색 공 (지름 10~20cm)" : "별도 준비물 없이 아이 이름만 불러요"}
+              </p>
             </div>
           </div>
         )}

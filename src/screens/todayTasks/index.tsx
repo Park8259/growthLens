@@ -12,7 +12,7 @@ import { BellIcon, ChevronRightIcon, MemoIcon } from "../../components/icons";
 import {
   TASK_LABEL, TASK_META, TASK_ORDER, TASK_SHORT, nameWithI, unitOf,
 } from "../../data/tasks";
-import TaskIcon from "../../components/TaskIcon";
+import TaskIllust from "../../components/TaskIllust";
 import type { TaskType } from "../../types/analysis";
 
 type TaskState = "todo" | "done" | "retry";
@@ -170,34 +170,27 @@ function TaskCard({
   sub: string;
   onStart: () => void;
 }) {
+  // Figma "오늘의과제 4/5": 할 과제는 파란 카드, 끝낸·다시 찍을 과제는 흰 카드. 과제 이름만 크게
   const filled = state === "todo";
   return (
     <div
-      className={`flex h-[102px] items-center rounded-[18px] pl-[17px] pr-4 ${
+      className={`flex h-[102px] items-center rounded-2xl pl-4 pr-4 ${
         filled ? "bg-brand" : "bg-white border border-p-line"
       }`}
     >
-      <div
-        className={`flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center rounded-xl ${
-          filled ? "bg-white text-brand-icon" : state === "done" ? "bg-p-card text-[#838383]" : "bg-brand-soft text-brand-icon"
-        }`}
-      >
-        <TaskIcon task={task} size={26} />
-      </div>
-      <div className="ml-[14px] min-w-0 flex-1">
-        <p className={`text-[17px] leading-5 font-bold ${filled ? "text-white" : state === "done" ? "text-p-light" : "text-p-title"}`}>
-          {TASK_LABEL[task]}
-        </p>
-        <p className={`mt-2 text-[13px] leading-4 ${filled ? "text-white" : "text-p-gray"}`}>{TASK_SHORT[task]}</p>
-        <p className={`mt-1 truncate text-xs leading-[14px] ${filled ? "text-white" : "text-p-light"}`}>{sub}</p>
+      <TaskIllust task={task} size={70} />
+      <div className="ml-[26px] min-w-0 flex-1">
+        <p className={`text-xl leading-6 font-bold ${filled ? "text-white" : "text-[#494949]"}`}>{TASK_LABEL[task]}</p>
+        {/* 화면에는 숨기고 읽어 주기에만 남겨요 */}
+        <p className="sr-only">{TASK_SHORT[task]} · {sub}</p>
       </div>
       {state === "done" ? (
-        <span className="flex h-[35px] items-center rounded-xl bg-p-card px-3 text-[13px] font-bold text-p-gray">완료</span>
+        <span className="flex h-[35px] items-center rounded-full bg-p-card px-3 text-[13px] font-bold text-[#494949]">완료</span>
       ) : (
         <button
           type="button"
           onClick={onStart}
-          className={`h-[35px] rounded-xl px-3.5 text-[13px] font-bold ${
+          className={`h-[35px] rounded-full px-3.5 text-[13px] font-bold ${
             state === "retry" ? "bg-warn-bg text-warn-text" : "bg-white text-brand-icon"
           }`}
         >

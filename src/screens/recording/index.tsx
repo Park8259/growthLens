@@ -440,7 +440,7 @@ function AnalyzingView({ task }: { task: TaskType }) {
       <p className="mt-2 text-base text-p-gray">10초 정도 걸려요</p>
       <svg width="96" height="96" viewBox="0 0 96 96" className="mt-[50px] animate-spin" style={{ animationDuration: "1.2s" }}>
         <circle cx="48" cy="48" r="40" fill="none" stroke="#E6F8FF" strokeWidth="8" />
-        <path d="M48 8a40 40 0 0 1 38 28" fill="none" stroke="#74DCFF" strokeWidth="8" strokeLinecap="round" />
+        <path d="M48 8a40 40 0 0 1 38 28" fill="none" stroke="#14C4FF" strokeWidth="8" strokeLinecap="round" />
       </svg>
       <ul className="mt-[67px] space-y-4">
         {steps.map((label, i) => {
