@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useRecordsStore } from "../../store/records";
 import { analyzeVideo } from "../../engine/analyzeVideo";
 import { BackIcon, CheckIcon, LockIcon } from "../../components/icons";
+import { detectCallTime } from "./fileDemo";
 import {
   TASK_ANALYZE_STEP, TASK_DURATION, TASK_LABEL, TASK_PREP_TITLE,
 } from "../../data/tasks";
@@ -210,6 +211,24 @@ export default function RecordingScreen() {
     navigate(-1);
   }
 
+  /**
+   * 데모용: 촬영 대신 영상 파일로 분석. 이름을 부른/시범을 보인 시점은 영상 소리에서 찾고,
+   * 못 찾으면 앱 촬영과 같은 5초(첫 신호음)를 써요.
+   */
+  async function analyzeFile(file: File) {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    setPhase("analyzing");
+    try {
+      const stimulus = needsStimulus ? ((await detectCallTime(file)) ?? BEEP_AT[0] * 1000) : undefined;
+      const result = await analyzeVideo({ videoBlob: file, taskType: task, stimulusTimestamp: stimulus });
+      addRecord({ taskType: task, recordedAt: Date.now(), result });
+      navigate(`/result/${task}`, { state: { result }, replace: true });
+    } catch (err) {
+      setErrorMsg(`분석 중 문제가 생겼어요: ${err instanceof Error ? err.message : String(err)}\n[파일: ${file.name}]`);
+      setPhase("error");
+    }
+  }
+
   /** 처음부터: 지금까지 찍은 것은 버리고 준비 화면으로 */
   function handleRestart() {
     const r = recorderRef.current;
@@ -228,6 +247,7 @@ export default function RecordingScreen() {
         <button onClick={() => navigate(-1)} className="h-[54px] px-8 rounded-[14px] bg-p-card text-base font-bold text-p-body">
           돌아가기
         </button>
+        <FilePickButton onPick={analyzeFile} />
       </div>
     );
   }
@@ -324,10 +344,34 @@ export default function RecordingScreen() {
                 {phase === "init" ? "카메라 준비 중..." : "시작"}
               </button>
             )}
+            {phase !== "countdown" && (
+              <div className="mt-3 flex justify-center">
+                <FilePickButton onPick={analyzeFile} />
+              </div>
+            )}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+/** 데모용 "영상 파일로 분석" 버튼 (작게, 눈에 덜 띄게) */
+function FilePickButton({ onPick }: { onPick: (file: File) => void }) {
+  return (
+    <label className="cursor-pointer text-[13px] text-p-light underline underline-offset-2">
+      영상 파일로 분석 (데모)
+      <input
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onPick(f);
+          e.target.value = "";
+        }}
+      />
+    </label>
   );
 }
 
