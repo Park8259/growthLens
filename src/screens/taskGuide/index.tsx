@@ -6,6 +6,11 @@ import {
 } from "../../components/icons";
 import { TASK_GUIDE, TASK_LABEL } from "../../data/tasks";
 import type { TaskType } from "../../types/analysis";
+import guideNameResponse from "../../assets/guide-name-response.jpg";
+
+const GUIDE_IMAGE: Partial<Record<TaskType, string>> = {
+  name_response: guideNameResponse,
+};
 
 const CHECKLIST = [
   { Icon: PhoneIcon, text: "폰을 세워 두세요" },
@@ -35,11 +40,19 @@ export default function TaskGuideScreen() {
       </div>
 
       <div className="flex-1 px-5 pb-8">
-        {/* 촬영 예시 이미지 자리 */}
-        <div className="mx-1 flex h-[147px] flex-col items-center justify-center gap-2.5 rounded-[24px] bg-brand-photo text-brand-icon">
-          <ImagePlaceholderIcon size={20} />
-          <span className="text-[11px]">촬영 예시 이미지</span>
-        </div>
+        {/* 촬영 예시 이미지. 아직 그림이 없는 과제는 자리만 보여줘요 */}
+        {GUIDE_IMAGE[task] ? (
+          <img
+            src={GUIDE_IMAGE[task]}
+            alt="아이와 2~3m 떨어져서 휴대폰으로 찍는 모습"
+            className="mx-1 block w-[calc(100%-8px)] rounded-[24px]"
+          />
+        ) : (
+          <div className="mx-1 flex h-[147px] flex-col items-center justify-center gap-2.5 rounded-[24px] bg-brand-photo text-brand-icon">
+            <ImagePlaceholderIcon size={20} />
+            <span className="text-[11px]">촬영 예시 이미지</span>
+          </div>
+        )}
 
         {/* 진료일 칩은 뺐어요: 보호자가 실제로 잡은 진료가 아니라 데모 데이터라서 */}
         {count > 0 && (
