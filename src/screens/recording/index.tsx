@@ -278,18 +278,13 @@ export default function RecordingScreen() {
         </>
       )}
 
-      {/* 가운데 점선 틀 */}
-      <div className={`absolute left-1/2 -translate-x-1/2 ${live ? "top-[222px]" : "top-[339px]"}`}>
-        <Brackets />
-      </div>
-
       {live && (
         <div className="absolute inset-x-0 top-[426px] flex flex-col items-center">
           <span className="flex h-[53px] items-center gap-2.5 rounded-full bg-[#263035] px-6 text-xl font-bold text-white">
             <TaskIcon task={task} size={20} />
             {needsStimulus ? `신호 ${beeps}번` : `남은 시간 ${mmss(Math.max(0, duration - elapsed))}`}
           </span>
-          <p className="mt-4 text-[13px] text-white">아이 전신이 점선 안에 들어오게 해주세요</p>
+          <p className="mt-4 text-[13px] text-white">아이 전신이 화면에 들어오게 해주세요</p>
         </div>
       )}
 
@@ -343,19 +338,6 @@ function CheckRow({ ok, text }: { ok: boolean; text: string }) {
         <CheckIcon size={13} />
       </span>
       <span className="text-[15px] text-white">{text}</span>
-    </div>
-  );
-}
-
-/** 네 모서리 꺾쇠 (141×141) */
-function Brackets() {
-  const c = "absolute h-5 w-[21px] border-brand";
-  return (
-    <div className="relative h-[141px] w-[141px]">
-      <span className={`${c} left-0 top-0 border-l-4 border-t-4 rounded-tl-md`} />
-      <span className={`${c} right-0 top-0 border-r-4 border-t-4 rounded-tr-md`} />
-      <span className={`${c} left-0 bottom-0 border-l-4 border-b-4 rounded-bl-md`} />
-      <span className={`${c} right-0 bottom-0 border-r-4 border-b-4 rounded-br-md`} />
     </div>
   );
 }
