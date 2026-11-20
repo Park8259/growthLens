@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import Splash from "./screens/splash";
-import RoleSelectScreen from "./screens/roleSelect";
 import OnboardingScreen from "./screens/onboarding";
 import TodayTasksScreen from "./screens/todayTasks";
 import TaskGuideScreen from "./screens/taskGuide";
@@ -18,8 +17,16 @@ import ReplayScreen from "./screens/replay";
 import DoctorTodayScreen from "./screens/doctor/today";
 import DoctorSceneScreen from "./screens/doctor/scene";
 import DoctorMeScreen from "./screens/doctor/me";
+import { useChildStore } from "./store/child";
+import { LoginScreen, SignupDoneScreen, SignupScreen, StartScreen, TermsScreen } from "./screens/auth";
 
 const SPLASH_MS = 1200;
+
+/** 아이 정보가 있으면 오늘의 과제, 없으면 시작(회원가입·로그인) 화면 */
+function StartRedirect() {
+  const profile = useChildStore((s) => s.profile);
+  return <Navigate to={profile ? "/tasks" : "/start"} replace />;
+}
 
 export default function App() {
   // 앱을 열 때 로고 화면을 잠깐 보여 줌
@@ -33,8 +40,15 @@ export default function App() {
     <BrowserRouter>
       {splash && <Splash />}
       <Routes>
-        {/* 역할 선택 */}
-        <Route path="/" element={<RoleSelectScreen />} />
+        {/* 시작: 역할 선택 없이 보호자 화면으로 (의사는 병원용 프로그램으로 분리) */}
+        <Route path="/" element={<StartRedirect />} />
+
+        {/* 회원가입 · 로그인 (서버 연결 전: 화면 흐름만) */}
+        <Route path="/start"               element={<StartScreen />} />
+        <Route path="/signup"              element={<SignupScreen />} />
+        <Route path="/signup/done"         element={<SignupDoneScreen />} />
+        <Route path="/signup/terms"        element={<TermsScreen />} />
+        <Route path="/login"               element={<LoginScreen />} />
 
         {/* 부모 앱 */}
         <Route path="/onboarding"          element={<OnboardingScreen />} />

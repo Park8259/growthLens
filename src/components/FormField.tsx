@@ -68,6 +68,17 @@ export function PageHeader({ title, onBack }: { title: string; onBack: () => voi
   );
 }
 
+/** 회원가입 진행 막대 (Figma "진행단계_N/4": 계정 → 우리 아이 정보 → 출생 정보 → 이용약관) */
+export function StepBar({ step, total = 4 }: { step: number; total?: number }) {
+  return (
+    <div className="flex gap-1.5 px-6 pt-3" aria-label={`${total}단계 중 ${step}단계`}>
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className={`h-1 flex-1 rounded-full ${i < step ? "bg-brand" : "bg-[#E5E7EB]"}`} />
+      ))}
+    </div>
+  );
+}
+
 /** 화면 하단 큰 버튼 (다음 / 완료) */
 export function BottomButton({
   label,
