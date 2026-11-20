@@ -13,7 +13,15 @@ export interface FaceFrame {
   /** 머리 좌우 각도(도). 양수 = 오른쪽, 음수 = 왼쪽. 얼굴 미검출 시 null */
   yaw: number | null;
   detected: boolean;
+  /** 얼굴 윤곽(FACE_OVAL 36점) + 코끝 1점의 정규화 좌표 [x, y, …]. 결과 화면 다시 보기용 */
+  pts: number[] | null;
 }
+
+// MediaPipe Face Mesh의 얼굴 윤곽 순서 (FACEMESH_FACE_OVAL), 끝에 코끝(1)
+const OUTLINE_IDX = [
+  10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377,
+  152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109, 1,
+];
 
 export interface FaceTrack extends VideoInfo {
   fps: number;
@@ -51,6 +59,8 @@ function extractYaw(data: ArrayLike<number>): number {
   return Math.asin(sinYaw) * (180 / Math.PI);
 }
 
+const round4 = (v: number) => Math.round(v * 10000) / 10000;
+
 export async function extractFaceLandmarks(
   videoBlob: Blob,
   options: { fps?: number; onProgress?: (ratio: number) => void } = {}
@@ -63,10 +73,12 @@ export async function extractFaceLandmarks(
     faceTimestampMs += 1000 / fps;
     const result = landmarker.detectForVideo(video, faceTimestampMs);
     const matrix = result.facialTransformationMatrixes?.[0];
+    const lm = result.faceLandmarks[0];
     frames.push({
       t: Math.round(t * 10000) / 10000,
       yaw: matrix ? extractYaw(matrix.data) : null,
       detected: result.faceLandmarks.length > 0,
+      pts: lm ? OUTLINE_IDX.flatMap((i) => [round4(lm[i].x), round4(lm[i].y)]) : null,
     });
   }, options.onProgress);
 

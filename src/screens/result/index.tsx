@@ -4,6 +4,8 @@ import { Pill } from "../../components/ParentNav";
 import { ImagePlaceholderIcon, QuestionIcon } from "../../components/icons";
 import { TASK_LABEL, TASK_RETRY_TIPS } from "../../data/tasks";
 import RecordDetail from "./RecordDetail";
+import TraceReplay from "./TraceReplay";
+import { getLastReplay } from "../../store/lastReplay";
 import type { TaskType, AnalysisResult } from "../../types/analysis";
 
 // Figma 부모 버전: "기록 저장"(성공), "재촬영"(retry_needed)
@@ -34,6 +36,8 @@ export default function ResultScreen() {
   const mine = records
     .filter((r) => r.taskType === task && r.result.status === "success")
     .sort((a, b) => b.recordedAt - a.recordedAt);
+  // 방금 분석한 영상과 좌표 (메모리에만 있음, 새로고침하면 없음)
+  const replay = getLastReplay(task);
 
   return (
     <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
@@ -45,6 +49,7 @@ export default function ResultScreen() {
           recordedAt={mine[0]?.recordedAt}
           earlier={mine.slice(1)}
           currentLabel="오늘"
+          extra={replay && <TraceReplay video={replay.video} trace={replay.trace} />}
         />
       </div>
 

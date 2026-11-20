@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { SessionRecord } from "../../store/records";
 import { Pill } from "../../components/ParentNav";
 import { ChevronRightIcon, QuestionIcon } from "../../components/icons";
@@ -28,9 +29,11 @@ type Props = {
   earlier: SessionRecord[];
   /** 비교 상자에서 이 기록을 부르는 이름 ("오늘", "11월 18일") */
   currentLabel: string;
+  /** 측정값 카드 바로 아래에 넣을 내용 (결과 화면의 "AI가 본 장면") */
+  extra?: ReactNode;
 };
 
-export default function RecordDetail({ task, title, result, recordedAt, earlier, currentLabel }: Props) {
+export default function RecordDetail({ task, title, result, recordedAt, earlier, currentLabel, extra }: Props) {
   const prev = earlier[0];
   const metric = result.metric;
   const unit = metric ? unitOf(metric.unit) : "";
@@ -52,6 +55,8 @@ export default function RecordDetail({ task, title, result, recordedAt, earlier,
           <span className="text-lg font-bold">{unit}</span>
         </p>
       </div>
+
+      {extra}
 
       {/* 지난 기록과 비교 */}
       {prev?.result.metric && metric && (

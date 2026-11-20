@@ -2,8 +2,8 @@
 // stimulusTimestamp(ms, 녹화 시작 기준) 이후 10초 내에
 // yaw 변화량 > 25도 AND 각속도 > 30도/초이면 반응으로 인정합니다.
 
-import type { AnalysisResult } from "../../types/analysis";
-import { extractFaceLandmarks } from "../face";
+import type { AnalysisResult, FaceTrace } from "../../types/analysis";
+import { extractFaceLandmarks, type FaceFrame } from "../face";
 
 const WINDOW_SEC = 10;      // 각 시도별 감시 창
 const YAW_DELTA_DEG = 25;   // 반응 판정 최소 변화량(도)
@@ -69,6 +69,7 @@ export async function analyzeNameResponse(
             attempts: attempt + 1,
             yawDeltaDeg: Math.round(delta * 10) / 10,
           },
+          trace: toTrace(frames, t0BaseSec, cur.t),
         };
       }
     }
@@ -86,5 +87,16 @@ export async function analyzeNameResponse(
       responded: false,
       attempts: MAX_ATTEMPTS,
     },
+    trace: toTrace(frames, t0BaseSec, null),
+  };
+}
+
+/** 결과 화면 다시 보기용 좌표 (측정에는 쓰지 않음) */
+function toTrace(frames: FaceFrame[], stimulusSec: number, responseSec: number | null): FaceTrace {
+  return {
+    kind: "face",
+    frames: frames.map((f) => ({ t: f.t, yaw: f.yaw, pts: f.pts })),
+    stimulusSec,
+    responseSec,
   };
 }

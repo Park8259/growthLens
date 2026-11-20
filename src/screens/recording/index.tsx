@@ -2,13 +2,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useRecordsStore } from "../../store/records";
 import { analyzeVideo } from "../../engine/analyzeVideo";
+import { setLastReplay } from "../../store/lastReplay";
 import { BackIcon, CheckIcon, LockIcon } from "../../components/icons";
 import { detectCallTime } from "./fileDemo";
 import {
   TASK_ANALYZE_STEP, TASK_DURATION, TASK_LABEL, TASK_PREP_TITLE,
 } from "../../data/tasks";
 import TaskIcon from "../../components/TaskIcon";
-import type { TaskType } from "../../types/analysis";
+import type { AnalysisResult, TaskType } from "../../types/analysis";
 
 // Figma 부모 버전: "촬영"(준비) → "촬영 다음"(녹화 중) → "영상 분석"
 // 준비 화면의 점검 목록·하단 안내·버튼은 프레임 밖 부품을 조립함
@@ -148,6 +149,14 @@ export default function RecordingScreen() {
     setPhase("recording");
   }, []);
 
+  /** 분석 끝: 좌표(trace)는 떼고 기록에 저장, 영상과 좌표는 결과 화면 다시 보기용으로 메모리에만 둠 */
+  const finish = useCallback((video: Blob, analyzed: AnalysisResult) => {
+    const { trace, ...result } = analyzed;
+    setLastReplay(trace ? { task, video, trace } : null);
+    addRecord({ taskType: task, recordedAt: Date.now(), result });
+    navigate(`/result/${task}`, { state: { result }, replace: true });
+  }, [task, addRecord, navigate]);
+
   const stopAndAnalyze = useCallback(() => {
     const recorder = recorderRef.current;
     if (!recorder || recorder.state === "inactive") return;
@@ -162,8 +171,7 @@ export default function RecordingScreen() {
           taskType: task,
           stimulusTimestamp: stimulusTimestampRef.current ?? undefined,
         });
-        addRecord({ taskType: task, recordedAt: Date.now(), result });
-        navigate(`/result/${task}`, { state: { result }, replace: true });
+        finish(blob, result);
       } catch (err) {
         setErrorMsg(`분석 중 문제가 생겼어요: ${err instanceof Error ? err.message : String(err)}\n[녹화: ${info}]`);
         setPhase("error");
@@ -171,7 +179,7 @@ export default function RecordingScreen() {
     };
     recorder.stop();
     streamRef.current?.getTracks().forEach((t) => t.stop());
-  }, [task, addRecord, navigate]);
+  }, [task, finish]);
 
   // 카운트다운 (시작을 누른 뒤 5초)
   useEffect(() => {
@@ -232,8 +240,7 @@ export default function RecordingScreen() {
     try {
       const stimulus = needsStimulus ? ((await detectCallTime(file)) ?? BEEP_AT[0] * 1000) : undefined;
       const result = await analyzeVideo({ videoBlob: file, taskType: task, stimulusTimestamp: stimulus });
-      addRecord({ taskType: task, recordedAt: Date.now(), result });
-      navigate(`/result/${task}`, { state: { result }, replace: true });
+      finish(file, result);
     } catch (err) {
       setErrorMsg(`분석 중 문제가 생겼어요: ${err instanceof Error ? err.message : String(err)}\n[파일: ${file.name}]`);
       setPhase("error");
