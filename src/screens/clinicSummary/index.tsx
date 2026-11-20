@@ -77,8 +77,9 @@ export default function ClinicSummaryScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto">
-      <div className="flex-1 px-5 pt-[69px] pb-6">
+    <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto print:min-h-0 print:max-w-[560px]">
+      {/* PDF 저장(인쇄) 때는 A4 한 장에 들어가게 줄임 — index.css의 .print-one-page */}
+      <div className="flex-1 px-5 pt-[69px] pb-6 print:pt-0 print:pb-0 print-one-page">
         <h1 className="text-2xl font-bold text-p-title">진료 요약이 도착했어요</h1>
 
         {/* 아이 정보 */}
@@ -98,7 +99,11 @@ export default function ClinicSummaryScreen() {
         </div>
         <p className="mt-5 flex gap-1.5 text-xs leading-4 text-p-gray">
           <QuestionIcon size={14} className="mt-px flex-shrink-0 text-p-light" />
-          보호자가 집에서 찍은 영상을 바탕으로 한 관찰 기록이에요. 진단이나 발달 판정이 아니에요.
+          <span>
+            보호자가 집에서 찍은 영상을 바탕으로 한 관찰 기록이에요.
+            <br />
+            진단이나 발달 판정이 아니에요.
+          </span>
         </p>
 
         {/* 과제 지표 */}
@@ -161,14 +166,14 @@ export default function ClinicSummaryScreen() {
         <section className="mt-8 px-[18px]">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-p-title">선생님께 물어볼 것</h2>
-            <button type="button" onClick={() => setAdding(true)} className="text-[13px] font-bold text-brand-deep">+ 추가</button>
+            <button type="button" onClick={() => setAdding(true)} className="text-[13px] font-bold text-brand-deep print:hidden">+ 추가</button>
           </div>
           <ul className="mt-4 space-y-2">
             {questions.map((q, i) => (
               <li key={i} className="flex items-start gap-3 rounded-xl bg-p-card px-[25px] py-3.5">
                 <QuestionIcon size={18} className="mt-0.5 flex-shrink-0 text-p-light" />
                 <p className="flex-1 text-sm leading-[17px] text-p-body whitespace-pre-line">{q}</p>
-                <button type="button" onClick={() => remove(i)} aria-label="질문 지우기" className="text-p-light">×</button>
+                <button type="button" onClick={() => remove(i)} aria-label="질문 지우기" className="text-p-light print:hidden">×</button>
               </li>
             ))}
             {adding && (
@@ -228,7 +233,7 @@ export default function ClinicSummaryScreen() {
       </div>
 
       {/* 하단 버튼 */}
-      <div className="flex items-center gap-2.5 border-t border-p-line bg-white px-5 py-3">
+      <div className="flex items-center gap-2.5 border-t border-p-line bg-white px-5 py-3 print:hidden">
         <button type="button" onClick={() => window.print()} className="flex h-[54px] w-[132px] items-center justify-center gap-1.5 text-base font-bold text-p-title">
           <PdfIcon size={18} />
           PDF 저장

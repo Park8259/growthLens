@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useRecordsStore } from "../../store/records";
 import { analyzeVideo } from "../../engine/analyzeVideo";
+import { setLastReplay } from "../../store/lastReplay";
 import { BackIcon, CheckIcon, LockIcon } from "../../components/icons";
+import { detectCallTime } from "./fileDemo";
 import {
   TASK_ANALYZE_STEP, TASK_DURATION, TASK_LABEL, TASK_PREP_TITLE,
 } from "../../data/tasks";
 import TaskIcon from "../../components/TaskIcon";
-import type { TaskType } from "../../types/analysis";
+import type { AnalysisResult, TaskType } from "../../types/analysis";
 
 // Figma 부모 버전: "촬영"(준비) → "촬영 다음"(녹화 중) → "영상 분석"
 // 준비 화면의 점검 목록·하단 안내·버튼은 프레임 밖 부품을 조립함
@@ -66,7 +68,14 @@ export default function RecordingScreen() {
   const [beeps, setBeeps] = useState(0);
   const [flash, setFlash] = useState(false);
   const [bright, setBright] = useState<boolean | null>(null);
+  // 미리보기 좌우 반전: 나를 비추는 전면 카메라(노트북 웹캠 등)일 때만 거울처럼 보여줌.
+  // 휴대폰 후면 카메라는 반전하지 않음. (녹화되는 영상 자체는 어느 쪽이든 반전되지 않아요)
+  const [mirror, setMirror] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  // ?debug=1 이면 켜진 카메라 정보를 화면에 보여줌 (광각 여부 확인용)
+  const [params] = useSearchParams();
+  const debug = params.get("debug") === "1";
+  const [camInfo, setCamInfo] = useState("");
 
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -86,6 +95,10 @@ export default function RecordingScreen() {
         });
         if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
         streamRef.current = stream;
+        const track = stream.getVideoTracks()[0];
+        const facing = track?.getSettings().facingMode;
+        setMirror(facing !== "environment");
+        if (debug && track) describeCamera(track).then(setCamInfo).catch(() => setCamInfo("카메라 정보를 읽지 못했어요"));
         if (videoRef.current) videoRef.current.srcObject = stream;
         setPhase("prep");
       } catch {
@@ -99,7 +112,7 @@ export default function RecordingScreen() {
       cancelled = true;
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
-  }, []);
+  }, [debug]);
 
   // 준비 화면: 1초마다 화면 밝기 확인 (평균 밝기 60/255 이상이면 충분)
   useEffect(() => {
@@ -136,6 +149,14 @@ export default function RecordingScreen() {
     setPhase("recording");
   }, []);
 
+  /** 분석 끝: 좌표(trace)는 떼고 기록에 저장, 영상과 좌표는 결과 화면 다시 보기용으로 메모리에만 둠 */
+  const finish = useCallback((video: Blob, analyzed: AnalysisResult) => {
+    const { trace, ...result } = analyzed;
+    setLastReplay(trace ? { task, video, trace } : null);
+    addRecord({ taskType: task, recordedAt: Date.now(), result });
+    navigate(`/result/${task}`, { state: { result }, replace: true });
+  }, [task, addRecord, navigate]);
+
   const stopAndAnalyze = useCallback(() => {
     const recorder = recorderRef.current;
     if (!recorder || recorder.state === "inactive") return;
@@ -150,8 +171,7 @@ export default function RecordingScreen() {
           taskType: task,
           stimulusTimestamp: stimulusTimestampRef.current ?? undefined,
         });
-        addRecord({ taskType: task, recordedAt: Date.now(), result });
-        navigate(`/result/${task}`, { state: { result }, replace: true });
+        finish(blob, result);
       } catch (err) {
         setErrorMsg(`분석 중 문제가 생겼어요: ${err instanceof Error ? err.message : String(err)}\n[녹화: ${info}]`);
         setPhase("error");
@@ -159,7 +179,7 @@ export default function RecordingScreen() {
     };
     recorder.stop();
     streamRef.current?.getTracks().forEach((t) => t.stop());
-  }, [task, addRecord, navigate]);
+  }, [task, finish]);
 
   // 카운트다운 (시작을 누른 뒤 5초)
   useEffect(() => {
@@ -210,6 +230,23 @@ export default function RecordingScreen() {
     navigate(-1);
   }
 
+  /**
+   * 데모용: 촬영 대신 영상 파일로 분석. 이름을 부른/시범을 보인 시점은 영상 소리에서 찾고,
+   * 못 찾으면 앱 촬영과 같은 5초(첫 신호음)를 써요.
+   */
+  async function analyzeFile(file: File) {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    setPhase("analyzing");
+    try {
+      const stimulus = needsStimulus ? ((await detectCallTime(file)) ?? BEEP_AT[0] * 1000) : undefined;
+      const result = await analyzeVideo({ videoBlob: file, taskType: task, stimulusTimestamp: stimulus });
+      finish(file, result);
+    } catch (err) {
+      setErrorMsg(`분석 중 문제가 생겼어요: ${err instanceof Error ? err.message : String(err)}\n[파일: ${file.name}]`);
+      setPhase("error");
+    }
+  }
+
   /** 처음부터: 지금까지 찍은 것은 버리고 준비 화면으로 */
   function handleRestart() {
     const r = recorderRef.current;
@@ -228,6 +265,7 @@ export default function RecordingScreen() {
         <button onClick={() => navigate(-1)} className="h-[54px] px-8 rounded-[14px] bg-p-card text-base font-bold text-p-body">
           돌아가기
         </button>
+        <FilePickButton onPick={analyzeFile} />
       </div>
     );
   }
@@ -245,9 +283,15 @@ export default function RecordingScreen() {
         muted
         playsInline
         className="absolute inset-0 h-full w-full object-cover"
-        style={{ transform: "scaleX(-1)" }}
+        style={mirror ? { transform: "scaleX(-1)" } : undefined}
       />
       <div className={`absolute inset-0 transition-colors duration-200 ${flash ? "bg-brand/40" : "bg-p-dark/40"}`} />
+
+      {debug && camInfo && (
+        <pre className="absolute inset-x-2 top-2 z-30 max-h-[45%] overflow-auto whitespace-pre-wrap rounded-lg bg-black/75 p-2 text-[10px] leading-[14px] text-white">
+          {camInfo}
+        </pre>
+      )}
 
       {/* 상단 */}
       {live ? (
@@ -324,10 +368,48 @@ export default function RecordingScreen() {
                 {phase === "init" ? "카메라 준비 중..." : "시작"}
               </button>
             )}
+            {phase !== "countdown" && (
+              <div className="mt-3 flex justify-center">
+                <FilePickButton onPick={analyzeFile} />
+              </div>
+            )}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+/** 진단용: 켜진 카메라 이름·해상도·확대 범위와 기기의 카메라 목록 */
+async function describeCamera(track: MediaStreamTrack): Promise<string> {
+  const s = track.getSettings() as MediaTrackSettings & { zoom?: number };
+  const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { zoom?: { min: number; max: number } };
+  const devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+  return [
+    `켜진 카메라: ${track.label || "(이름 없음)"}`,
+    `방향: ${s.facingMode ?? "?"}  해상도: ${s.width}x${s.height}  비율: ${s.aspectRatio?.toFixed(2) ?? "?"}  fps: ${s.frameRate ?? "?"}`,
+    `확대: 지금 ${s.zoom ?? "?"} / 가능 ${caps.zoom ? `${caps.zoom.min}~${caps.zoom.max}` : "정보 없음"}`,
+    `기기의 카메라 ${devices.length}개:`,
+    ...devices.map((d, i) => `  ${i + 1}. ${d.label || "(이름 없음)"}${d.deviceId === s.deviceId ? "  ← 사용 중" : ""}`),
+  ].join("\n");
+}
+
+/** 데모용 "영상 파일로 분석" 버튼 (작게, 눈에 덜 띄게) */
+function FilePickButton({ onPick }: { onPick: (file: File) => void }) {
+  return (
+    <label className="cursor-pointer text-[13px] text-p-light underline underline-offset-2">
+      영상 파일로 분석 (데모)
+      <input
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onPick(f);
+          e.target.value = "";
+        }}
+      />
+    </label>
   );
 }
 

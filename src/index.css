@@ -11,6 +11,22 @@ body {
   overscroll-behavior: none;
 }
 
+/* PDF 저장(인쇄): A4 한 장, 배경색 그대로 */
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  body {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-one-page {
+    zoom: 0.82;
+  }
+}
+
 /* 휠 선택기 스크롤바 숨기기 */
 .no-scrollbar {
   scrollbar-width: none;

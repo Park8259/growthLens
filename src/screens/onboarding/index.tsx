@@ -14,7 +14,8 @@ import {
 } from "./sheets";
 import { SIBLING_LABEL } from "./labels";
 
-// Figma(와이어프레임 페이지) 흐름: 출생 정보("다음") → 우리 아이 정보("완료")
+// 흐름: 우리 아이 정보("다음") → 출생 정보("완료")
+// (Figma는 출생 정보가 먼저였지만 디자인팀 요청으로 순서를 바꿈, 2026-11-20)
 
 type Sheet =
   | "premature" | "weeks" | "region" | "sibling"
@@ -38,26 +39,26 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState<1 | 2>(1);
   const [sheet, setSheet] = useState<Sheet>(null);
 
-  // 1단계: 출생 정보
+  // 2단계: 출생 정보
   const [premature, setPremature] = useState<boolean | null>(null);
   const [weeks, setWeeks] = useState<Measure>(undefined);
   const [region, setRegion] = useState<{ province: string; district: string } | null>(null);
   const [siblingOrder, setSiblingOrder] = useState<number | null>(null);
 
-  // 2단계: 우리 아이 정보
+  // 1단계: 우리 아이 정보
   const [name, setName] = useState("");
   const [gender, setGender] = useState<"male" | "female" | null>(null);
   const [birthDate, setBirthDate] = useState("");
   const [weight, setWeight] = useState<Measure>(undefined);
   const [height, setHeight] = useState<Measure>(undefined);
 
-  const step1Valid =
+  const birthValid =
     premature !== null &&
     (!premature || weeks !== undefined) &&
     region !== null &&
     siblingOrder !== null;
 
-  const step2Valid =
+  const childValid =
     name.trim() !== "" &&
     gender !== null &&
     birthDate !== "" &&
@@ -67,7 +68,7 @@ export default function OnboardingScreen() {
   const close = () => setSheet(null);
 
   function handleSubmit() {
-    if (!step1Valid || !step2Valid || !gender || !region) return;
+    if (!birthValid || !childValid || !gender || !region) return;
     setProfile({
       id: crypto.randomUUID(),
       name: name.trim(),
@@ -87,9 +88,9 @@ export default function OnboardingScreen() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col max-w-sm mx-auto font-noto">
-      {step === 1 ? (
+      {step === 2 ? (
         <>
-          <PageHeader title="출생 정보" onBack={() => navigate(-1)} />
+          <PageHeader title="출생 정보" onBack={() => setStep(1)} />
           <div className="flex-1 px-6 pt-6 space-y-[22px]">
             <Field label="조산 여부">
               <SelectBox
@@ -130,11 +131,11 @@ export default function OnboardingScreen() {
               />
             </Field>
           </div>
-          <BottomButton label="다음" disabled={!step1Valid} onClick={() => setStep(2)} />
+          <BottomButton label="완료" disabled={!birthValid} onClick={handleSubmit} />
         </>
       ) : (
         <>
-          <PageHeader title="우리 아이 정보" onBack={() => setStep(1)} />
+          <PageHeader title="우리 아이 정보" onBack={() => navigate(-1)} />
           <div className="flex-1 px-6 pt-6 space-y-[22px]">
             <Field label="이름">
               <TextBox
@@ -182,7 +183,7 @@ export default function OnboardingScreen() {
               />
             </Field>
           </div>
-          <BottomButton label="완료" disabled={!step2Valid} onClick={handleSubmit} />
+          <BottomButton label="다음" disabled={!childValid} onClick={() => setStep(2)} />
         </>
       )}
 

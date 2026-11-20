@@ -74,6 +74,9 @@ function BabyIcon({ gender }: { gender: "male" | "female" }) {
 
 // ─── 생년월일 ────────────────────────────────────────────
 
+/** 고를 수 있는 가장 이른 생일: 오늘부터 4년(48개월) 전. 엔진 참고 연구가 18~48개월 대상 */
+const MAX_AGE_YEARS = 4;
+
 function monthsSince(iso: string, now: Date): number {
   const [y, m, d] = iso.split("-").map(Number);
   let months = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m);
@@ -94,6 +97,7 @@ export function BirthDateSheet({
   const maxY = now.getFullYear();
   const maxM = now.getMonth() + 1;
   const maxD = now.getDate();
+  const minY = maxY - MAX_AGE_YEARS;
 
   // 처음 열 때 값이 없으면 12개월 전 날짜에서 시작
   const [init] = useState(() => {
@@ -102,24 +106,28 @@ export function BirthDateSheet({
     d.setFullYear(d.getFullYear() - 1);
     return [d.getFullYear(), d.getMonth() + 1, d.getDate()];
   });
-  const [y, setY] = useState(init[0]);
+  const [y, setY] = useState(Math.min(Math.max(init[0], minY), maxY));
   const [m, setM] = useState(init[1]);
   const [d, setD] = useState(init[2]);
 
-  const years = useMemo(() => range(maxY - 6, maxY), [maxY]);
-  const months = useMemo(() => range(1, y === maxY ? maxM : 12), [y, maxY, maxM]);
+  const years = useMemo(() => range(minY, maxY), [minY, maxY]);
+  const months = useMemo(
+    () => range(y === minY ? maxM : 1, y === maxY ? maxM : 12),
+    [y, minY, maxY, maxM],
+  );
+  // 연·월이 바뀌어 고른 월/일이 범위를 넘으면 가장 가까운 값으로 맞춤
+  const month = Math.min(Math.max(m, months[0]), months[months.length - 1]);
   const days = useMemo(() => {
-    const last = new Date(y, m, 0).getDate();
-    return range(1, y === maxY && m === maxM ? Math.min(last, maxD) : last);
-  }, [y, m, maxY, maxM, maxD]);
-
-  // 연·월이 바뀌어 고른 월/일이 범위를 넘으면 마지막 값으로 맞춤
-  const month = Math.min(m, months[months.length - 1]);
-  const day = Math.min(d, days[days.length - 1]);
+    const last = new Date(y, month, 0).getDate();
+    const first = y === minY && month === maxM ? Math.min(maxD, last) : 1;
+    return range(first, y === maxY && month === maxM ? Math.min(last, maxD) : last);
+  }, [y, month, minY, maxY, maxM, maxD]);
+  const day = Math.min(Math.max(d, days[0]), days[days.length - 1]);
   const iso = `${y}-${pad(month)}-${pad(day)}`;
 
   const calendarRef = useRef<HTMLInputElement>(null);
   const todayIso = `${maxY}-${pad(maxM)}-${pad(maxD)}`;
+  const minIso = `${minY}-${pad(maxM)}-${pad(maxD)}`;
 
   return (
     <BottomSheet open onClose={onClose} title="생년월일">
@@ -144,6 +152,7 @@ export function BirthDateSheet({
           <input
             ref={calendarRef}
             type="date"
+            min={minIso}
             max={todayIso}
             value={iso}
             tabIndex={-1}
@@ -151,6 +160,7 @@ export function BirthDateSheet({
             className="pointer-events-none absolute inset-0 opacity-0"
             onChange={(e) => {
               if (!e.target.value) return;
+              if (e.target.value < minIso || e.target.value > todayIso) return;
               const [ny, nm, nd] = e.target.value.split("-").map(Number);
               setY(ny);
               setM(nm);

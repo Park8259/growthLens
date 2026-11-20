@@ -1,9 +1,9 @@
 import type { TaskType } from "../types/analysis";
-import { mockDoctor, nextAppointment } from "./mockDoctor";
 
 // 과제 정보 한곳 모음 (Figma 부모 버전 문구 기준)
 
-export const TASK_ORDER: TaskType[] = ["ball_play", "name_response", "imitation"];
+// 과제를 보여주는 순서 (오늘의 과제, 변화, 진료 요약, 의사 화면 공통). 호명 반응이 맨 위
+export const TASK_ORDER: TaskType[] = ["name_response", "ball_play", "imitation"];
 
 export const TASK_LABEL: Record<TaskType, string> = {
   name_response: "호명 반응",
@@ -71,12 +71,6 @@ export const TASK_DURATION: Record<TaskType, number> = {
   ball_play: 60,
 };
 
-/** 데모용 다음 진료일 — 의사 앱 일정(김하온 = p1)과 같은 날을 써요 */
-export function nextVisit() {
-  const a = nextAppointment("p1");
-  const [, m, d] = (a?.date ?? "").split("-").map(Number);
-  return { month: m, day: d, has: Boolean(a), doctor: mockDoctor.name };
-}
 
 export function unitOf(unit: "seconds" | "count") {
   return unit === "seconds" ? "초" : "회";

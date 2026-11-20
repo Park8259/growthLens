@@ -13,7 +13,7 @@ export default function ParentNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   return (
-    <nav className="sticky bottom-0 z-20 flex h-[84px] border-t border-p-line bg-white pt-[11px]">
+    <nav className="sticky bottom-0 z-20 flex h-[84px] border-t border-p-line bg-white pt-[11px] print:hidden">
       {TABS.map(({ label, path, Icon }) => {
         const active = pathname === path;
         return (
